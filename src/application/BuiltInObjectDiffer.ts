@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import { execFileOutput } from "../process/ExecFileOutput.js";
+import { createAirgapEnv } from "../process/AirgapEnvironment.js";
 import type { DecompDiffResult } from "../domain/decompilationAnalysis.js";
 
 export interface ObjectDiffOptions {
@@ -80,7 +81,9 @@ export class BuiltInObjectDiffer {
 
   private async disassemble(path: string): Promise<string> {
     try {
-      const { stdout } = await execFileOutput("objdump", ["-d", "-r", path]);
+      const { stdout } = await execFileOutput("objdump", ["-d", "-r", path], {
+        env: createAirgapEnv(),
+      });
       return stdout;
     } catch (err: unknown) {
       return "";

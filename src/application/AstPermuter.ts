@@ -1,5 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { parse as parseYaml } from "yaml";
+import { createAirgapEnv } from "../process/AirgapEnvironment.js";
 import { execFileOutput } from "../process/ExecFileOutput.js";
 import { BuiltInObjectDiffer } from "./BuiltInObjectDiffer.js";
 import type {
@@ -34,7 +36,7 @@ export class AstPermuter {
     let config: DecompProjectConfig;
     try {
       const configRaw = await readFile(join(projectDir, "decomp.yaml"), "utf8");
-      config = JSON.parse(configRaw) as DecompProjectConfig;
+      config = parseYaml(configRaw) as DecompProjectConfig;
     } catch {
       config = {
         schema_version: 1,
@@ -256,7 +258,7 @@ export class AstPermuter {
       await execFileOutput(
         compiler,
         [...flags, "-c", srcFile, "-o", outFile, ...includes],
-        { cwd },
+        { cwd, env: createAirgapEnv() },
       );
       return true;
     } catch {

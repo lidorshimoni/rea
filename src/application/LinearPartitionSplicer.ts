@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, resolve, basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
+import { parse as parseYaml } from "yaml";
 import type {
   DecompSlice,
   DecompSliceManifest,
@@ -30,7 +31,7 @@ export class LinearPartitionSplicer {
     let config: DecompProjectConfig | undefined;
     try {
       const configRaw = await readFile(join(projectDir, "decomp.yaml"), "utf8");
-      config = JSON.parse(configRaw) as DecompProjectConfig;
+      config = parseYaml(configRaw) as DecompProjectConfig;
     } catch {
       // Config optional
     }

@@ -17,6 +17,11 @@ const DECOMPILATION_OPERATIONS: readonly DecompOperation[] = [
   "check_decomp_unit",
   "permute_decomp_symbol",
   "sync_decomp_obligations",
+  "enrich_decomp_symbols",
+  "detect_decomp_libraries",
+  "recover_decomp_macros",
+  "annotate_decomp_source",
+  "enrich_decomp_project",
 ];
 
 /** Bind matching decompilation handlers to their exact named schemas. */

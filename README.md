@@ -358,7 +358,7 @@ See [native investigation](docs/native-investigation.md) for keyed archives, ins
 | Electron analysis         |     5 | renderer observation, static app mapping, and static/runtime reconciliation                                                                                   |
 | JavaScript runtime        |     2 | Node/Electron Inspector target discovery, script locations, and execution-context events                                                                      |
 | Application workflows     |     7 | cross-layer feature traces, build comparisons, historical source mapping, static return-shape comparison, and reconstruction checks                           |
-| Matching decompilation    |     7 | binary inspection, project scaffolding, linear assembly slicing, unit build/relink, relocation-masked diffing, AST permutation, and obligation ledger closure |
+| Matching decompilation    |    12 | binary inspection, project scaffolding, linear assembly slicing, unit build/relink, relocation-masked diffing, AST permutation, and obligation ledger closure |
 | Workspace and observation |    21 | sessions, evidence bundles, navigation context, process/artifact/function comparisons, and open-question tracking                                             |
 
 The public interface describes what the agent is trying to learn. Providers decide how to answer. macOS utilities handle common semantic inspection without launching Hopper; Hopper handles deeper native analysis; the process harness records direct behavioral captures.

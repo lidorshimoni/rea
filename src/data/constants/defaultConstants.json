@@ -1,0 +1,233 @@
+[
+  {
+    "name": "CRC32_POLYNOMIAL",
+    "value": 3988292384,
+    "hex": "0xedb88320",
+    "category": "crc_crypto",
+    "description": "Standard IEEE 802.3 CRC32 polynomial (bit-reversed)"
+  },
+  {
+    "name": "CRC32_POLYNOMIAL_BE",
+    "value": 79764919,
+    "hex": "0x04c11db7",
+    "category": "crc_crypto",
+    "description": "Standard IEEE 802.3 CRC32 polynomial (normal)"
+  },
+  {
+    "name": "CRC32C_POLYNOMIAL",
+    "value": 2197175160,
+    "hex": "0x82f63b78",
+    "category": "crc_crypto",
+    "description": "Castagnoli CRC32C polynomial (bit-reversed)"
+  },
+  {
+    "name": "CRC16_CCITT",
+    "value": 4129,
+    "hex": "0x1021",
+    "category": "crc_crypto",
+    "description": "CRC16-CCITT generator polynomial"
+  },
+  {
+    "name": "CRC16_IBM",
+    "value": 32773,
+    "hex": "0x8005",
+    "category": "crc_crypto",
+    "description": "CRC16-IBM / ARC generator polynomial"
+  },
+  {
+    "name": "SHA256_H0",
+    "value": 1779033703,
+    "hex": "0x6a09e667",
+    "category": "crc_crypto",
+    "description": "FIPS 180-2 SHA-256 initial hash value H0"
+  },
+  {
+    "name": "SHA256_H1",
+    "value": 3144134277,
+    "hex": "0xbb67ae85",
+    "category": "crc_crypto",
+    "description": "FIPS 180-2 SHA-256 initial hash value H1"
+  },
+  {
+    "name": "SHA256_H2",
+    "value": 1013904242,
+    "hex": "0x3c6ef372",
+    "category": "crc_crypto",
+    "description": "FIPS 180-2 SHA-256 initial hash value H2"
+  },
+  {
+    "name": "SHA256_H3",
+    "value": 2773480762,
+    "hex": "0xa54ff53a",
+    "category": "crc_crypto",
+    "description": "FIPS 180-2 SHA-256 initial hash value H3"
+  },
+  {
+    "name": "MD5_INIT_A",
+    "value": 1732584193,
+    "hex": "0x67452301",
+    "category": "crc_crypto",
+    "description": "RFC 1321 MD5 initial state constant A"
+  },
+  {
+    "name": "MD5_INIT_B",
+    "value": 4023233417,
+    "hex": "0xefcdab89",
+    "category": "crc_crypto",
+    "description": "RFC 1321 MD5 initial state constant B"
+  },
+  {
+    "name": "PAGE_SIZE_4K",
+    "value": 4096,
+    "hex": "0x00001000",
+    "category": "memory_page",
+    "description": "Standard 4KB architecture page size"
+  },
+  {
+    "name": "PAGE_MASK_4K",
+    "value": 4294963200,
+    "hex": "0xfffff000",
+    "category": "memory_page",
+    "description": "Standard 4KB page alignment mask"
+  },
+  {
+    "name": "PAGE_SIZE_64K",
+    "value": 65536,
+    "hex": "0x00010000",
+    "category": "memory_page",
+    "description": "64KB memory boundary size"
+  },
+  {
+    "name": "PAGE_SIZE_2M",
+    "value": 2097152,
+    "hex": "0x00200000",
+    "category": "memory_page",
+    "description": "2MB huge page size"
+  },
+  {
+    "name": "STACK_ALIGNMENT_16",
+    "value": 4294967280,
+    "hex": "0xfffffff0",
+    "category": "memory_page",
+    "description": "System V AMD64 ABI 16-byte stack alignment mask"
+  },
+  {
+    "name": "EPERM",
+    "value": 1,
+    "hex": "0x00000001",
+    "category": "posix_errno",
+    "description": "Operation not permitted"
+  },
+  {
+    "name": "ENOENT",
+    "value": 2,
+    "hex": "0x00000002",
+    "category": "posix_errno",
+    "description": "No such file or directory"
+  },
+  {
+    "name": "ESRCH",
+    "value": 3,
+    "hex": "0x00000003",
+    "category": "posix_errno",
+    "description": "No such process"
+  },
+  {
+    "name": "EINTR",
+    "value": 4,
+    "hex": "0x00000004",
+    "category": "posix_errno",
+    "description": "Interrupted system call"
+  },
+  {
+    "name": "EIO",
+    "value": 5,
+    "hex": "0x00000005",
+    "category": "posix_errno",
+    "description": "I/O error"
+  },
+  {
+    "name": "EBADF",
+    "value": 9,
+    "hex": "0x00000009",
+    "category": "posix_errno",
+    "description": "Bad file descriptor"
+  },
+  {
+    "name": "ENOMEM",
+    "value": 12,
+    "hex": "0x0000000c",
+    "category": "posix_errno",
+    "description": "Out of memory"
+  },
+  {
+    "name": "EACCES",
+    "value": 13,
+    "hex": "0x0000000d",
+    "category": "posix_errno",
+    "description": "Permission denied"
+  },
+  {
+    "name": "EEXIST",
+    "value": 17,
+    "hex": "0x00000011",
+    "category": "posix_errno",
+    "description": "File exists"
+  },
+  {
+    "name": "EINVAL",
+    "value": 22,
+    "hex": "0x00000016",
+    "category": "posix_errno",
+    "description": "Invalid argument"
+  },
+  {
+    "name": "ETIMEDOUT",
+    "value": 110,
+    "hex": "0x0000006e",
+    "category": "posix_errno",
+    "description": "Connection timed out"
+  },
+  {
+    "name": "NVIC_ISER0",
+    "value": 3758153984,
+    "hex": "0xe000e100",
+    "category": "embedded_hw",
+    "description": "ARM Cortex-M NVIC Interrupt Set-Enable Register 0"
+  },
+  {
+    "name": "NVIC_ICER0",
+    "value": 3758154112,
+    "hex": "0xe000e180",
+    "category": "embedded_hw",
+    "description": "ARM Cortex-M NVIC Interrupt Clear-Enable Register 0"
+  },
+  {
+    "name": "SCB_AIRCR",
+    "value": 3758157068,
+    "hex": "0xe000ed0c",
+    "category": "embedded_hw",
+    "description": "ARM Cortex-M Application Interrupt and Reset Control Register"
+  },
+  {
+    "name": "SCB_VTOR",
+    "value": 3758157064,
+    "hex": "0xe000ed08",
+    "category": "embedded_hw",
+    "description": "ARM Cortex-M Vector Table Offset Register"
+  },
+  {
+    "name": "SYST_CSR",
+    "value": 3758153744,
+    "hex": "0xe000e010",
+    "category": "embedded_hw",
+    "description": "ARM Cortex-M SysTick Control and Status Register"
+  },
+  {
+    "name": "RCC_BASE_STM32F4",
+    "value": 1073887232,
+    "hex": "0x40023800",
+    "category": "embedded_hw",
+    "description": "STM32F4 Reset and Clock Control (RCC) base address"
+  }
+]

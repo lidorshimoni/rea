@@ -1,6 +1,7 @@
 import { mkdir, writeFile, copyFile, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
+import { stringify as stringifyYaml } from "yaml";
 import { BinaryFingerprintScanner } from "./BinaryFingerprintScanner.js";
 import type {
   DecompProjectConfig,
@@ -91,11 +92,20 @@ export class ProjectScaffolder {
         expected_directory: "expected",
         build_directory: "build",
       },
+      enrichment: {
+        dwarf_symbols: true,
+        library_detection: true,
+        library_signatures_path: null,
+        macro_recovery: true,
+        macro_constants_path: null,
+        comment_synthesis: true,
+        llm_fallback: true,
+      },
     };
 
     await writeFile(
       join(projectDir, "decomp.yaml"),
-      JSON.stringify(config, null, 2),
+      stringifyYaml(config),
       "utf8",
     );
 
@@ -288,6 +298,18 @@ LDFLAGS ?= -T linker.ld -nostdlib
 export SOURCE_DATE_EPOCH = 0
 export LC_ALL = C
 export TZ = UTC
+export DEBUGINFOD_URLS =
+export DEBUGINFOD_TIMEOUT = 0
+export DEBUGINFOD_MAX_RETRIES = 0
+export DEBUGINFOD_CACHE_PATH = /dev/null
+export http_proxy =
+export https_proxy =
+export HTTP_PROXY =
+export HTTPS_PROXY =
+export all_proxy =
+export ALL_PROXY =
+export no_proxy = *
+export NO_PROXY = *
 
 .PHONY: all clean relink
 

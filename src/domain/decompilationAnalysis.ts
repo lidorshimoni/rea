@@ -86,8 +86,22 @@ export const decompProjectConfigSchema = z.strictObject({
     expected_directory: z.string().default("expected"),
     build_directory: z.string().default("build"),
   }),
+  enrichment: z
+    .strictObject({
+      dwarf_symbols: z.boolean().default(true),
+      library_detection: z.boolean().default(true),
+      library_signatures_path: z.string().nullable().default(null),
+      macro_recovery: z.boolean().default(true),
+      macro_constants_path: z.string().nullable().default(null),
+      comment_synthesis: z.boolean().default(true),
+      llm_fallback: z.boolean().default(true),
+    })
+    .optional(),
 });
 
+export type DecompEnrichmentConfig = NonNullable<
+  z.infer<typeof decompProjectConfigSchema>["enrichment"]
+>;
 export type DecompProjectConfig = z.infer<typeof decompProjectConfigSchema>;
 
 /** Object diff result comparing expected target slice with recompiled candidate. */
@@ -201,7 +215,133 @@ export type DecompSyncObligationsResult = z.infer<
   typeof decompSyncObligationsResultSchema
 >;
 
-/** Input schemas for all 7 matching decompilation tools. */
+/** DWARF debug symbol extraction result. */
+export const decompEnrichSymbolsResultSchema = z.strictObject({
+  total_functions_recovered: z.number().int().min(0),
+  total_types_recovered: z.number().int().min(0),
+  functions: z.array(
+    z.strictObject({
+      name: z.string(),
+      return_type: z.string(),
+      parameters: z.array(
+        z.strictObject({
+          name: z.string(),
+          type: z.string(),
+        }),
+      ),
+      local_variables: z.array(
+        z.strictObject({
+          name: z.string(),
+          type: z.string(),
+        }),
+      ),
+      address: z.string().optional(),
+      size: z.number().int().optional(),
+    }),
+  ),
+  types: z.array(
+    z.strictObject({
+      name: z.string(),
+      kind: z.enum(["struct", "union", "enum", "typedef"]),
+      size: z.number().int().optional(),
+      members: z
+        .array(
+          z.strictObject({
+            name: z.string(),
+            type: z.string(),
+            offset: z.number().int().optional(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+  header_files_generated: z.array(z.string()),
+});
+
+export type DecompEnrichSymbolsResult = z.infer<
+  typeof decompEnrichSymbolsResultSchema
+>;
+
+/** Third-party library signature detection result. */
+export const decompDetectLibrariesResultSchema = z.strictObject({
+  total_libraries_detected: z.number().int().min(0),
+  total_symbols_identified: z.number().int().min(0),
+  detected_libraries: z.array(
+    z.strictObject({
+      library: z.string(),
+      category: z.string(),
+      version: z.string().optional(),
+      confidence: z.number().min(0).max(1),
+      functions_matched: z.array(z.string()),
+      matched_strings: z.array(z.string()),
+    }),
+  ),
+  identified_symbols: z.array(
+    z.strictObject({
+      address: z.string(),
+      symbol: z.string(),
+      library: z.string(),
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+});
+
+export type DecompDetectLibrariesResult = z.infer<
+  typeof decompDetectLibrariesResultSchema
+>;
+
+/** Macro and magic constant recovery result. */
+export const decompRecoverMacrosResultSchema = z.strictObject({
+  total_macros: z.number().int().min(0),
+  header_path: z.string(),
+  macros_recovered: z.array(
+    z.strictObject({
+      name: z.string(),
+      value: z.string(),
+      category: z.string(),
+      occurrences: z.number().int().min(0),
+      description: z.string().optional(),
+    }),
+  ),
+});
+
+export type DecompRecoverMacrosResult = z.infer<
+  typeof decompRecoverMacrosResultSchema
+>;
+
+/** Source code comment and Doxygen contract annotation result. */
+export const decompAnnotateSourceResultSchema = z.strictObject({
+  total_comments_added: z.number().int().min(0),
+  annotated_files: z.array(z.string()),
+  functions_annotated: z.array(
+    z.strictObject({
+      symbol: z.string(),
+      file: z.string(),
+      docstring: z.string(),
+      intent_comments_count: z.number().int().min(0),
+    }),
+  ),
+});
+
+export type DecompAnnotateSourceResult = z.infer<
+  typeof decompAnnotateSourceResultSchema
+>;
+
+/** Master enrichment orchestrator result. */
+export const decompEnrichProjectResultSchema = z.strictObject({
+  project_directory: z.string(),
+  dwarf_symbols: decompEnrichSymbolsResultSchema.optional(),
+  library_detection: decompDetectLibrariesResultSchema.optional(),
+  macro_recovery: decompRecoverMacrosResultSchema.optional(),
+  comment_synthesis: decompAnnotateSourceResultSchema.optional(),
+  summary: z.string(),
+});
+
+export type DecompEnrichProjectResult = z.infer<
+  typeof decompEnrichProjectResultSchema
+>;
+
+/** Input schemas for all 12 matching decompilation tools. */
 export const decompInputSchemas = {
   inspect_decomp_binary: z.strictObject({
     path: z.string().min(1).describe("Path to target binary or raw firmware"),
@@ -280,9 +420,101 @@ export const decompInputSchemas = {
       .min(1)
       .describe("Matching decomp project root directory"),
   }),
+  enrich_decomp_symbols: z.strictObject({
+    project_directory: z
+      .string()
+      .min(1)
+      .describe("Matching decomp project root directory"),
+    binary_path: z
+      .string()
+      .optional()
+      .describe("Optional path to binary with DWARF debug info"),
+    output_header_dir: z
+      .string()
+      .optional()
+      .describe(
+        "Optional directory to write generated header files (default: include)",
+      ),
+  }),
+  detect_decomp_libraries: z.strictObject({
+    project_directory: z
+      .string()
+      .min(1)
+      .describe("Matching decomp project root directory"),
+    binary_path: z
+      .string()
+      .optional()
+      .describe("Optional path to target binary"),
+    signatures_path: z
+      .string()
+      .optional()
+      .describe("Optional path to custom signatures JSON file"),
+    use_llm_fallback: z
+      .boolean()
+      .optional()
+      .describe(
+        "Whether to use offline heuristic/LLM fallback if no exact signature match",
+      ),
+  }),
+  recover_decomp_macros: z.strictObject({
+    project_directory: z
+      .string()
+      .min(1)
+      .describe("Matching decomp project root directory"),
+    constants_path: z
+      .string()
+      .optional()
+      .describe("Optional path to custom magic constants JSON file"),
+    target_source_path: z
+      .string()
+      .optional()
+      .describe("Optional specific source or asm file to scan"),
+  }),
+  annotate_decomp_source: z.strictObject({
+    project_directory: z
+      .string()
+      .min(1)
+      .describe("Matching decomp project root directory"),
+    symbol: z
+      .string()
+      .optional()
+      .describe("Optional symbol/function to annotate"),
+    source_file: z
+      .string()
+      .optional()
+      .describe("Optional specific source file to annotate"),
+    style: z
+      .enum(["doxygen", "intent", "both"])
+      .optional()
+      .describe(
+        "Annotation style: doxygen contracts, intent comments, or both",
+      ),
+  }),
+  enrich_decomp_project: z.strictObject({
+    project_directory: z
+      .string()
+      .min(1)
+      .describe("Matching decomp project root directory"),
+    dwarf_symbols: z
+      .boolean()
+      .optional()
+      .describe("Whether to run DWARF debug symbol extraction"),
+    library_detection: z
+      .boolean()
+      .optional()
+      .describe("Whether to run library signature detection"),
+    macro_recovery: z
+      .boolean()
+      .optional()
+      .describe("Whether to run macro/constant recovery"),
+    comment_synthesis: z
+      .boolean()
+      .optional()
+      .describe("Whether to synthesize Doxygen and intent comments"),
+  }),
 } as const;
 
-/** Output result schemas for all 7 matching decompilation tools. */
+/** Output result schemas for all 12 matching decompilation tools. */
 export const decompResultSchemas = {
   inspect_decomp_binary: decompBinaryFingerprintSchema,
   init_decomp_project: decompProjectConfigSchema,
@@ -291,6 +523,11 @@ export const decompResultSchemas = {
   check_decomp_unit: decompDiffResultSchema,
   permute_decomp_symbol: decompPermuteResultSchema,
   sync_decomp_obligations: decompSyncObligationsResultSchema,
+  enrich_decomp_symbols: decompEnrichSymbolsResultSchema,
+  detect_decomp_libraries: decompDetectLibrariesResultSchema,
+  recover_decomp_macros: decompRecoverMacrosResultSchema,
+  annotate_decomp_source: decompAnnotateSourceResultSchema,
+  enrich_decomp_project: decompEnrichProjectResultSchema,
 } as const;
 
 export type DecompOperation = keyof typeof decompInputSchemas;
@@ -330,5 +567,25 @@ export const decompRequestSchema = z.discriminatedUnion("operation", [
   z.strictObject({
     operation: z.literal("sync_decomp_obligations"),
     input: decompInputSchemas.sync_decomp_obligations,
+  }),
+  z.strictObject({
+    operation: z.literal("enrich_decomp_symbols"),
+    input: decompInputSchemas.enrich_decomp_symbols,
+  }),
+  z.strictObject({
+    operation: z.literal("detect_decomp_libraries"),
+    input: decompInputSchemas.detect_decomp_libraries,
+  }),
+  z.strictObject({
+    operation: z.literal("recover_decomp_macros"),
+    input: decompInputSchemas.recover_decomp_macros,
+  }),
+  z.strictObject({
+    operation: z.literal("annotate_decomp_source"),
+    input: decompInputSchemas.annotate_decomp_source,
+  }),
+  z.strictObject({
+    operation: z.literal("enrich_decomp_project"),
+    input: decompInputSchemas.enrich_decomp_project,
   }),
 ]);

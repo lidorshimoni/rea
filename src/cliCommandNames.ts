@@ -87,6 +87,11 @@ export const CLI_COMMANDS = Object.freeze({
   checkDecompUnit: "check-decomp-unit",
   permuteDecompSymbol: "permute-decomp-symbol",
   syncDecompObligations: "sync-decomp-obligations",
+  enrichDecompSymbols: "enrich-decomp-symbols",
+  detectDecompLibraries: "detect-decomp-libraries",
+  recoverDecompMacros: "recover-decomp-macros",
+  annotateDecompSource: "annotate-decomp-source",
+  enrichDecompProject: "enrich-decomp-project",
 });
 
 /** Ordered primary CLI inventory; aliases are intentionally excluded. */

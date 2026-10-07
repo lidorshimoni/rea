@@ -2,13 +2,23 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, resolve, basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
+import { parse as parseYaml } from "yaml";
 import { BinaryFingerprintScanner } from "./BinaryFingerprintScanner.js";
 import { ProjectScaffolder } from "./ProjectScaffolder.js";
 import { LinearPartitionSplicer } from "./LinearPartitionSplicer.js";
 import { BuiltInObjectDiffer } from "./BuiltInObjectDiffer.js";
 import { AstPermuter } from "./AstPermuter.js";
+import { DwarfSymbolExtractor } from "./DwarfSymbolExtractor.js";
+import { LibrarySignatureDetector } from "./LibrarySignatureDetector.js";
+import { MacroConstantRecoverer } from "./MacroConstantRecoverer.js";
+import { SourceCommentAnnotator } from "./SourceCommentAnnotator.js";
 import { execFileOutput } from "../process/ExecFileOutput.js";
-import { createEvidence, type Evidence } from "../domain/evidence.js";
+import { createAirgapEnv } from "../process/AirgapEnvironment.js";
+import {
+  createEvidence,
+  type Evidence,
+  type EvidenceSubjectTarget,
+} from "../domain/evidence.js";
 import { evaluateReconstructionObligationLedger } from "./ReconstructionObligationLedgerEvaluation.js";
 import { err, ok, type Result } from "../domain/result.js";
 import {
@@ -21,6 +31,7 @@ import { jsonObjectSchema, type JsonValue } from "../domain/jsonValue.js";
 import type { BinaryArchitecture } from "../domain/binaryTargetTypes.js";
 import {
   decompRequestSchema,
+  decompProjectConfigSchema,
   type DecompOperation,
   type DecompBinaryFingerprint,
   type DecompProjectConfig,
@@ -29,6 +40,11 @@ import {
   type DecompDiffResult,
   type DecompPermuteResult,
   type DecompSyncObligationsResult,
+  type DecompEnrichSymbolsResult,
+  type DecompDetectLibrariesResult,
+  type DecompRecoverMacrosResult,
+  type DecompAnnotateSourceResult,
+  type DecompEnrichProjectResult,
 } from "../domain/decompilationAnalysis.js";
 import {
   deriveReconstructionObligationCandidates,
@@ -52,7 +68,8 @@ export const DECOMPILATION_PROVIDER = {
 /**
  * Master Matching Decompilation and Progressive Recompilation Application Service.
  * Unites reconnaissance scanner, modular scaffolder, linear partition splicer,
- * relocation-masked object differ, AST permuter, and formal obligation ledger synchronizer.
+ * relocation-masked object differ, AST permuter, formal obligation ledger synchronizer,
+ * and semantic enrichment suite (DWARF symbols, library detection, macro recovery, comment synthesis).
  */
 export class MatchingDecompilationService {
   private readonly scanner = new BinaryFingerprintScanner();
@@ -60,6 +77,10 @@ export class MatchingDecompilationService {
   private readonly splicer = new LinearPartitionSplicer();
   private readonly differ = new BuiltInObjectDiffer();
   private readonly permuter = new AstPermuter();
+  private readonly dwarfExtractor = new DwarfSymbolExtractor();
+  private readonly libraryDetector = new LibrarySignatureDetector();
+  private readonly macroRecoverer = new MacroConstantRecoverer();
+  private readonly commentAnnotator = new SourceCommentAnnotator();
 
   /** Unified application-level executor returning Evidence or AnalysisError. */
   async execute(
@@ -88,12 +109,12 @@ export class MatchingDecompilationService {
             .digest("hex");
           const res = await this.inspectBinary(targetPath);
           evidence = createEvidence(
-            {
-              path: targetPath,
-              sha256: targetSha256,
-              format: this.mapToEvidenceFormat(res.format),
-              architecture: res.architecture as BinaryArchitecture,
-            },
+            this.toEvidenceTarget(
+              targetPath,
+              targetSha256,
+              res.format,
+              res.architecture,
+            ),
             DECOMPILATION_PROVIDER,
             {
               predicateType: "rea.decompilation.fingerprint",
@@ -113,12 +134,12 @@ export class MatchingDecompilationService {
         case "init_decomp_project": {
           const res = await this.initProject(parsed.data.input);
           evidence = createEvidence(
-            {
-              path: res.target.path,
-              sha256: res.target.sha256,
-              format: this.mapToEvidenceFormat(res.target.format),
-              architecture: res.target.architecture as BinaryArchitecture,
-            },
+            this.toEvidenceTarget(
+              res.target.path,
+              res.target.sha256,
+              res.target.format,
+              res.target.architecture,
+            ),
             DECOMPILATION_PROVIDER,
             {
               predicateType: "rea.decompilation.project",
@@ -141,12 +162,12 @@ export class MatchingDecompilationService {
             resolve(parsed.data.input.project_directory),
           );
           evidence = createEvidence(
-            {
-              path: config.target.path,
-              sha256: res.target_sha256,
-              format: this.mapToEvidenceFormat(config.target.format),
-              architecture: config.target.architecture as BinaryArchitecture,
-            },
+            this.toEvidenceTarget(
+              config.target.path,
+              res.target_sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
             DECOMPILATION_PROVIDER,
             {
               predicateType: "rea.decompilation.slices",
@@ -169,12 +190,12 @@ export class MatchingDecompilationService {
             resolve(parsed.data.input.project_directory),
           );
           evidence = createEvidence(
-            {
-              path: config.target.path,
-              sha256: config.target.sha256,
-              format: this.mapToEvidenceFormat(config.target.format),
-              architecture: config.target.architecture as BinaryArchitecture,
-            },
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
             DECOMPILATION_PROVIDER,
             {
               predicateType: "rea.decompilation.build",
@@ -197,12 +218,12 @@ export class MatchingDecompilationService {
             resolve(parsed.data.input.project_directory),
           );
           evidence = createEvidence(
-            {
-              path: config.target.path,
-              sha256: config.target.sha256,
-              format: this.mapToEvidenceFormat(config.target.format),
-              architecture: config.target.architecture as BinaryArchitecture,
-            },
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
             DECOMPILATION_PROVIDER,
             {
               predicateType: "rea.decompilation.diff",
@@ -225,12 +246,12 @@ export class MatchingDecompilationService {
             resolve(parsed.data.input.project_directory),
           );
           evidence = createEvidence(
-            {
-              path: config.target.path,
-              sha256: config.target.sha256,
-              format: this.mapToEvidenceFormat(config.target.format),
-              architecture: config.target.architecture as BinaryArchitecture,
-            },
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
             DECOMPILATION_PROVIDER,
             {
               predicateType: "rea.decompilation.permute",
@@ -253,12 +274,12 @@ export class MatchingDecompilationService {
             resolve(parsed.data.input.project_directory),
           );
           evidence = createEvidence(
-            {
-              path: config.target.path,
-              sha256: config.target.sha256,
-              format: this.mapToEvidenceFormat(config.target.format),
-              architecture: config.target.architecture as BinaryArchitecture,
-            },
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
             DECOMPILATION_PROVIDER,
             {
               predicateType: "rea.decompilation.sync",
@@ -275,12 +296,151 @@ export class MatchingDecompilationService {
           );
           break;
         }
+        case "enrich_decomp_symbols": {
+          const res = await this.enrichSymbols(parsed.data.input);
+          const config = await this.loadConfig(
+            resolve(parsed.data.input.project_directory),
+          );
+          evidence = createEvidence(
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
+            DECOMPILATION_PROVIDER,
+            {
+              predicateType: "rea.decompilation.symbols",
+              operation: "enrich_decomp_symbols",
+              parameters: jsonObjectSchema.parse(toJson(parsed.data.input)),
+              result: toJson(res),
+              rawResult: null,
+              confidence: "observed",
+              authority: "shipped-artifact",
+              environment: null,
+              limitations: [],
+              evidenceLinks: [],
+            },
+          );
+          break;
+        }
+        case "detect_decomp_libraries": {
+          const res = await this.detectLibraries(parsed.data.input);
+          const config = await this.loadConfig(
+            resolve(parsed.data.input.project_directory),
+          );
+          evidence = createEvidence(
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
+            DECOMPILATION_PROVIDER,
+            {
+              predicateType: "rea.decompilation.libraries",
+              operation: "detect_decomp_libraries",
+              parameters: jsonObjectSchema.parse(toJson(parsed.data.input)),
+              result: toJson(res),
+              rawResult: null,
+              confidence: "inferred",
+              authority: "shipped-artifact",
+              environment: null,
+              limitations: [],
+              evidenceLinks: [],
+            },
+          );
+          break;
+        }
+        case "recover_decomp_macros": {
+          const res = await this.recoverMacros(parsed.data.input);
+          const config = await this.loadConfig(
+            resolve(parsed.data.input.project_directory),
+          );
+          evidence = createEvidence(
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
+            DECOMPILATION_PROVIDER,
+            {
+              predicateType: "rea.decompilation.macros",
+              operation: "recover_decomp_macros",
+              parameters: jsonObjectSchema.parse(toJson(parsed.data.input)),
+              result: toJson(res),
+              rawResult: null,
+              confidence: "inferred",
+              authority: "shipped-artifact",
+              environment: null,
+              limitations: [],
+              evidenceLinks: [],
+            },
+          );
+          break;
+        }
+        case "annotate_decomp_source": {
+          const res = await this.annotateSource(parsed.data.input);
+          const config = await this.loadConfig(
+            resolve(parsed.data.input.project_directory),
+          );
+          evidence = createEvidence(
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
+            DECOMPILATION_PROVIDER,
+            {
+              predicateType: "rea.decompilation.annotations",
+              operation: "annotate_decomp_source",
+              parameters: jsonObjectSchema.parse(toJson(parsed.data.input)),
+              result: toJson(res),
+              rawResult: null,
+              confidence: "derived",
+              authority: "shipped-artifact",
+              environment: null,
+              limitations: [],
+              evidenceLinks: [],
+            },
+          );
+          break;
+        }
+        case "enrich_decomp_project": {
+          const res = await this.enrichProject(parsed.data.input);
+          const config = await this.loadConfig(
+            resolve(parsed.data.input.project_directory),
+          );
+          evidence = createEvidence(
+            this.toEvidenceTarget(
+              config.target.path,
+              config.target.sha256,
+              config.target.format,
+              config.target.architecture,
+            ),
+            DECOMPILATION_PROVIDER,
+            {
+              predicateType: "rea.decompilation.enrichment",
+              operation: "enrich_decomp_project",
+              parameters: jsonObjectSchema.parse(toJson(parsed.data.input)),
+              result: toJson(res),
+              rawResult: null,
+              confidence: "derived",
+              authority: "shipped-artifact",
+              environment: null,
+              limitations: [],
+              evidenceLinks: [],
+            },
+          );
+          break;
+        }
       }
       return ok(evidence);
-    } catch (caught: any) {
-      return err(
-        new AnalysisOutputError(operation, caught?.message ?? String(caught)),
-      );
+    } catch (caught: unknown) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      return err(new AnalysisOutputError(operation, message));
     }
   }
 
@@ -288,6 +448,39 @@ export class MatchingDecompilationService {
     if (format.startsWith("ELF")) return "elf";
     if (format.startsWith("PE")) return "pe";
     return "file";
+  }
+
+  private mapToEvidenceArchitecture(
+    arch: string | undefined,
+  ): BinaryArchitecture | undefined {
+    switch (arch) {
+      case "x86":
+      case "x86_64":
+      case "arm":
+      case "arm64":
+      case "arm-thumb":
+      case "mips":
+      case "powerpc":
+      case "riscv":
+        return arch;
+      default:
+        return undefined;
+    }
+  }
+
+  private toEvidenceTarget(
+    path: string,
+    sha256: string,
+    format: string,
+    arch?: string,
+  ): EvidenceSubjectTarget {
+    const architecture = this.mapToEvidenceArchitecture(arch);
+    return {
+      path,
+      sha256,
+      format: this.mapToEvidenceFormat(format),
+      ...(architecture !== undefined ? { architecture } : {}),
+    };
   }
 
   /** 1. Inspect target binary or raw firmware image. */
@@ -427,12 +620,12 @@ export class MatchingDecompilationService {
 
     // 1. Create baseline observation evidence for target binary
     const binaryEvidence = createEvidence(
-      {
-        path: join(projectDir, config.target.path),
-        sha256: config.target.sha256,
-        format: mapFormat(config.target.format),
-        architecture: config.target.architecture as any,
-      },
+      this.toEvidenceTarget(
+        join(projectDir, config.target.path),
+        config.target.sha256,
+        config.target.format,
+        config.target.architecture,
+      ),
       DECOMPILATION_PROVIDER,
       {
         predicateType: "rea.binary.inspection",
@@ -513,12 +706,12 @@ export class MatchingDecompilationService {
       if (is100Percent) {
         // Create authentic rea.reconstruction-proof Evidence
         const proofEvidence = createEvidence(
-          {
-            path: join(projectDir, config.target.path),
-            sha256: config.target.sha256,
-            format: mapFormat(config.target.format),
-            architecture: config.target.architecture as any,
-          },
+          this.toEvidenceTarget(
+            join(projectDir, config.target.path),
+            config.target.sha256,
+            config.target.format,
+            config.target.architecture,
+          ),
           DECOMPILATION_PROVIDER,
           {
             predicateType: "rea.reconstruction-proof",
@@ -640,7 +833,165 @@ export class MatchingDecompilationService {
 
   private async loadConfig(projectDir: string): Promise<DecompProjectConfig> {
     const raw = await readFile(join(projectDir, "decomp.yaml"), "utf8");
-    return JSON.parse(raw) as DecompProjectConfig;
+    return decompProjectConfigSchema.parse(parseYaml(raw));
+  }
+
+  /** Ingests DWARF debug info to extract signatures, parameters, and structs. */
+  async enrichSymbols(input: {
+    readonly project_directory: string;
+    readonly binary_path?: string | undefined;
+    readonly output_header_dir?: string | undefined;
+  }): Promise<DecompEnrichSymbolsResult> {
+    const projectDir = resolve(input.project_directory);
+    const config = await this.loadConfig(projectDir);
+    const binaryPath = input.binary_path
+      ? resolve(input.binary_path)
+      : join(projectDir, config.target.path);
+    return this.dwarfExtractor.extract({
+      projectDirectory: projectDir,
+      binaryPath,
+      outputHeaderDir: input.output_header_dir,
+    });
+  }
+
+  /** Detects statically linked 3rd-party libraries using in-tree signatures. */
+  async detectLibraries(input: {
+    readonly project_directory: string;
+    readonly binary_path?: string | undefined;
+    readonly signatures_path?: string | undefined;
+    readonly use_llm_fallback?: boolean | undefined;
+  }): Promise<DecompDetectLibrariesResult> {
+    const projectDir = resolve(input.project_directory);
+    const config = await this.loadConfig(projectDir);
+    const binaryPath = input.binary_path
+      ? resolve(input.binary_path)
+      : join(projectDir, config.target.path);
+    const signaturesPath =
+      input.signatures_path ??
+      config.enrichment?.library_signatures_path ??
+      undefined;
+    const useLlmFallback =
+      input.use_llm_fallback ?? config.enrichment?.llm_fallback ?? true;
+    return this.libraryDetector.detect({
+      projectDirectory: projectDir,
+      binaryPath,
+      signaturesPath,
+      useLlmFallback,
+    });
+  }
+
+  /** Deterministically recovers magic numbers and constants into macros.h. */
+  async recoverMacros(input: {
+    readonly project_directory: string;
+    readonly constants_path?: string | undefined;
+    readonly target_source_path?: string | undefined;
+  }): Promise<DecompRecoverMacrosResult> {
+    const projectDir = resolve(input.project_directory);
+    const config = await this.loadConfig(projectDir);
+    const constantsPath =
+      input.constants_path ??
+      config.enrichment?.macro_constants_path ??
+      undefined;
+    return this.macroRecoverer.recover({
+      projectDirectory: projectDir,
+      constantsPath,
+      targetSourcePath: input.target_source_path,
+    });
+  }
+
+  /** Synthesizes structured Doxygen and intent comments for C source files. */
+  async annotateSource(input: {
+    readonly project_directory: string;
+    readonly symbol?: string | undefined;
+    readonly source_file?: string | undefined;
+    readonly style?: "doxygen" | "intent" | "both" | undefined;
+  }): Promise<DecompAnnotateSourceResult> {
+    const projectDir = resolve(input.project_directory);
+    return this.commentAnnotator.annotate({
+      projectDirectory: projectDir,
+      symbol: input.symbol,
+      sourceFile: input.source_file,
+      style: input.style,
+    });
+  }
+
+  /** Master orchestrator coordinating all SDES enrichment modules. */
+  async enrichProject(input: {
+    readonly project_directory: string;
+    readonly dwarf_symbols?: boolean | undefined;
+    readonly library_detection?: boolean | undefined;
+    readonly macro_recovery?: boolean | undefined;
+    readonly comment_synthesis?: boolean | undefined;
+  }): Promise<DecompEnrichProjectResult> {
+    const projectDir = resolve(input.project_directory);
+    const config = await this.loadConfig(projectDir);
+    const enrichmentConfig = config.enrichment;
+
+    const runDwarf =
+      input.dwarf_symbols ?? enrichmentConfig?.dwarf_symbols ?? true;
+    const runLibraries =
+      input.library_detection ?? enrichmentConfig?.library_detection ?? true;
+    const runMacros =
+      input.macro_recovery ?? enrichmentConfig?.macro_recovery ?? true;
+    const runComments =
+      input.comment_synthesis ?? enrichmentConfig?.comment_synthesis ?? true;
+
+    let dwarfResult: DecompEnrichSymbolsResult | undefined;
+    if (runDwarf) {
+      try {
+        dwarfResult = await this.enrichSymbols({
+          project_directory: projectDir,
+        });
+      } catch {
+        // DWARF might not be present in stripped targets
+      }
+    }
+
+    let libraryResult: DecompDetectLibrariesResult | undefined;
+    if (runLibraries) {
+      libraryResult = await this.detectLibraries({
+        project_directory: projectDir,
+      });
+    }
+
+    let macroResult: DecompRecoverMacrosResult | undefined;
+    if (runMacros) {
+      macroResult = await this.recoverMacros({
+        project_directory: projectDir,
+      });
+    }
+
+    let commentResult: DecompAnnotateSourceResult | undefined;
+    if (runComments) {
+      commentResult = await this.annotateSource({
+        project_directory: projectDir,
+      });
+    }
+
+    const summaryParts: string[] = [
+      `Enriched project: ${config.name}.`,
+      dwarfResult
+        ? `Recovered ${dwarfResult.total_functions_recovered} functions and ${dwarfResult.total_types_recovered} types from DWARF.`
+        : "No DWARF symbols extracted.",
+      libraryResult
+        ? `Detected ${libraryResult.total_libraries_detected} 3rd-party libraries (${libraryResult.total_symbols_identified} symbols).`
+        : "No 3rd-party libraries detected.",
+      macroResult
+        ? `Recovered ${macroResult.total_macros} magic constants into ${macroResult.header_path}.`
+        : "No macros recovered.",
+      commentResult
+        ? `Added ${commentResult.total_comments_added} comments across ${commentResult.annotated_files.length} files.`
+        : "No comments synthesized.",
+    ];
+
+    return {
+      project_directory: projectDir,
+      dwarf_symbols: dwarfResult,
+      library_detection: libraryResult,
+      macro_recovery: macroResult,
+      comment_synthesis: commentResult,
+      summary: summaryParts.join(" "),
+    };
   }
 
   private async ensureObjectBuilt(
@@ -670,7 +1021,7 @@ export class MatchingDecompilationService {
             "-o",
             outPath,
           ].filter(Boolean),
-          { cwd: projectDir },
+          { cwd: projectDir, env: createAirgapEnv() },
         );
       } catch {
         // Asm compilation failed or file not found
@@ -693,7 +1044,7 @@ export class MatchingDecompilationService {
             "-o",
             outPath,
           ],
-          { cwd: projectDir },
+          { cwd: projectDir, env: createAirgapEnv() },
         );
       } catch {
         // C compilation failed or file not found
@@ -726,7 +1077,7 @@ export class MatchingDecompilationService {
           "-o",
           outFile,
         ],
-        { cwd: projectDir },
+        { cwd: projectDir, env: createAirgapEnv() },
       );
 
       // Also ensure baseline asm object is built for comparisons
@@ -738,12 +1089,13 @@ export class MatchingDecompilationService {
         success: true,
         compiler_output: (stdout + "\n" + stderr).trim(),
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       return {
         unit: unit ?? `src/core/${symbol}.c`,
         symbol,
         success: false,
-        compiler_output: err?.message ?? String(err),
+        compiler_output: message,
       };
     }
   }
@@ -765,7 +1117,7 @@ export class MatchingDecompilationService {
     try {
       const raw = await readFile(join(projectDir, "slices.json"), "utf8");
       manifest = JSON.parse(raw) as DecompSliceManifest;
-    } catch (err: any) {
+    } catch {
       return {
         success: false,
         compiler_output: `Cannot relink: slices.json missing. Run split_decomp_slices first.`,
@@ -822,13 +1174,14 @@ export class MatchingDecompilationService {
               "-o",
               sliceObj,
             ].filter(Boolean),
-            { cwd: projectDir },
+            { cwd: projectDir, env: createAirgapEnv() },
           );
           objFiles.push(sliceObj);
-        } catch (err: any) {
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
           return {
             success: false,
-            compiler_output: `Assembling ${slice.asm_file} failed: ${err.message}`,
+            compiler_output: `Assembling ${slice.asm_file} failed: ${message}`,
             relink_success: false,
           };
         }
@@ -844,14 +1197,14 @@ export class MatchingDecompilationService {
       await execFileOutput(
         ldTool,
         ["-T", linkerScript, "-nostdlib", ...objFiles, "-o", relinkedElf],
-        { cwd: projectDir },
+        { cwd: projectDir, env: createAirgapEnv() },
       );
 
       // Objcopy to binary
       await execFileOutput(
         objcopyTool,
         ["-O", "binary", relinkedElf, relinkedBin],
-        { cwd: projectDir },
+        { cwd: projectDir, env: createAirgapEnv() },
       );
 
       // Verify SHA256 match
@@ -874,10 +1227,11 @@ export class MatchingDecompilationService {
         target_sha256: targetSha256,
         full_binary_match: fullMatch,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       return {
         success: false,
-        compiler_output: `Linker execution failed: ${err.message}`,
+        compiler_output: `Linker execution failed: ${message}`,
         relink_success: false,
       };
     }

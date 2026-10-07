@@ -129,6 +129,81 @@ export const DECOMPILATION_TOOL_CONTRACTS = [
       },
     ],
   },
+  {
+    name: "enrich_decomp_symbols",
+    ...toolContractMetadata("enrich_decomp_symbols"),
+    kind: "application",
+    description:
+      "Ingests DWARF debug information (.debug_info, .debug_line) from target or unstripped binary using local tools (readelf, llvm-dwarfdump) in a 100% airgapped environment. Extracts exact function signatures, parameter names, local variables, and struct/union/enum/typedef definitions into types.h and symbols.h.",
+    inputSchema: decompInputSchemas.enrich_decomp_symbols,
+    outputSchema: evidenceResultOf(decompResultSchemas.enrich_decomp_symbols),
+    examples: [
+      {
+        title: "Extract DWARF debug symbols and types into header files",
+        input: { project_directory: "./decomp_workspace" },
+      },
+    ],
+  },
+  {
+    name: "detect_decomp_libraries",
+    ...toolContractMetadata("detect_decomp_libraries"),
+    kind: "application",
+    description:
+      "Identifies statically linked 3rd-party open-source libraries (musl/glibc, zlib, OpenSSL, mbedtls, cJSON, SQLite, FreeRTOS) in stripped binaries using in-tree FLIRT/opcode-mask signatures, distinctive constants, and string cross-references, outputting detections to libraries.h.",
+    inputSchema: decompInputSchemas.detect_decomp_libraries,
+    outputSchema: evidenceResultOf(decompResultSchemas.detect_decomp_libraries),
+    examples: [
+      {
+        title: "Detect statically linked third-party libraries",
+        input: { project_directory: "./decomp_workspace" },
+      },
+    ],
+  },
+  {
+    name: "recover_decomp_macros",
+    ...toolContractMetadata("recover_decomp_macros"),
+    kind: "application",
+    description:
+      "Scans decompiled C code, assembly stubs, and binary slices against a deterministic curated database of magic numbers (CRC polynomials, cryptographic IVs, POSIX errnos, ARM hardware registers, page sizes), recovering readable #define constants into macros.h.",
+    inputSchema: decompInputSchemas.recover_decomp_macros,
+    outputSchema: evidenceResultOf(decompResultSchemas.recover_decomp_macros),
+    examples: [
+      {
+        title: "Recover magic numbers and constants into macros.h",
+        input: { project_directory: "./decomp_workspace" },
+      },
+    ],
+  },
+  {
+    name: "annotate_decomp_source",
+    ...toolContractMetadata("annotate_decomp_source"),
+    kind: "application",
+    description:
+      "Synthesizes structured Doxygen function contract comments and algorithmic intent comments for decompiled C source files while preserving executable lines to maintain bit-exact recompilation equivalence.",
+    inputSchema: decompInputSchemas.annotate_decomp_source,
+    outputSchema: evidenceResultOf(decompResultSchemas.annotate_decomp_source),
+    examples: [
+      {
+        title: "Annotate decompiled C source with Doxygen and intent comments",
+        input: { project_directory: "./decomp_workspace" },
+      },
+    ],
+  },
+  {
+    name: "enrich_decomp_project",
+    ...toolContractMetadata("enrich_decomp_project"),
+    kind: "application",
+    description:
+      "Master orchestrator for the Semantic Decompilation Enrichment Suite (SDES). Coordinates DWARF symbol extraction, 3rd-party library detection, macro/constant recovery, and source documentation synthesis in a single unified 100% offline workflow.",
+    inputSchema: decompInputSchemas.enrich_decomp_project,
+    outputSchema: evidenceResultOf(decompResultSchemas.enrich_decomp_project),
+    examples: [
+      {
+        title: "Run complete semantic enrichment pipeline on decomp project",
+        input: { project_directory: "./decomp_workspace" },
+      },
+    ],
+  },
 ] as const satisfies readonly ToolContract[];
 
 /** Resolve a decompilation contract by name while retaining exact types. */

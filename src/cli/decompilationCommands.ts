@@ -181,4 +181,184 @@ export const registerDecompilationCommands = (
         project_directory: args.projectDirectory,
       }),
   });
+
+  cli.command(CLI_COMMANDS.enrichDecompSymbols, {
+    description:
+      "Ingests DWARF debug information from binary to extract signatures and types into headers",
+    args: z.object({
+      projectDirectory: z
+        .string()
+        .describe("Matching decomp project root directory"),
+    }),
+    options: z.object({
+      binaryPath: z
+        .string()
+        .optional()
+        .describe("Optional path to binary with DWARF debug info"),
+      outputHeaderDir: z
+        .string()
+        .optional()
+        .describe(
+          "Optional directory to write generated header files (default: include)",
+        ),
+    }),
+    run: ({ args, options }) =>
+      execute(CLI_COMMANDS.enrichDecompSymbols, "enrich_decomp_symbols", {
+        project_directory: args.projectDirectory,
+        ...(options.binaryPath !== undefined
+          ? { binary_path: options.binaryPath }
+          : {}),
+        ...(options.outputHeaderDir !== undefined
+          ? { output_header_dir: options.outputHeaderDir }
+          : {}),
+      }),
+  });
+
+  cli.command(CLI_COMMANDS.detectDecompLibraries, {
+    description:
+      "Identifies statically linked 3rd-party libraries using in-tree signatures and xrefs",
+    args: z.object({
+      projectDirectory: z
+        .string()
+        .describe("Matching decomp project root directory"),
+    }),
+    options: z.object({
+      binaryPath: z
+        .string()
+        .optional()
+        .describe("Optional path to target binary"),
+      signaturesPath: z
+        .string()
+        .optional()
+        .describe("Optional path to custom signatures JSON file"),
+      useLlmFallback: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether to use offline heuristic/LLM fallback if no exact signature match",
+        ),
+    }),
+    run: ({ args, options }) =>
+      execute(CLI_COMMANDS.detectDecompLibraries, "detect_decomp_libraries", {
+        project_directory: args.projectDirectory,
+        ...(options.binaryPath !== undefined
+          ? { binary_path: options.binaryPath }
+          : {}),
+        ...(options.signaturesPath !== undefined
+          ? { signatures_path: options.signaturesPath }
+          : {}),
+        ...(options.useLlmFallback !== undefined
+          ? { use_llm_fallback: options.useLlmFallback }
+          : {}),
+      }),
+  });
+
+  cli.command(CLI_COMMANDS.recoverDecompMacros, {
+    description:
+      "Recovers magic numbers and constants into macros.h from deterministic database",
+    args: z.object({
+      projectDirectory: z
+        .string()
+        .describe("Matching decomp project root directory"),
+    }),
+    options: z.object({
+      constantsPath: z
+        .string()
+        .optional()
+        .describe("Optional path to custom magic constants JSON file"),
+      targetSourcePath: z
+        .string()
+        .optional()
+        .describe("Optional specific source or asm file to scan"),
+    }),
+    run: ({ args, options }) =>
+      execute(CLI_COMMANDS.recoverDecompMacros, "recover_decomp_macros", {
+        project_directory: args.projectDirectory,
+        ...(options.constantsPath !== undefined
+          ? { constants_path: options.constantsPath }
+          : {}),
+        ...(options.targetSourcePath !== undefined
+          ? { target_source_path: options.targetSourcePath }
+          : {}),
+      }),
+  });
+
+  cli.command(CLI_COMMANDS.annotateDecompSource, {
+    description:
+      "Synthesizes structured Doxygen and intent comments for decompiled C source files",
+    args: z.object({
+      projectDirectory: z
+        .string()
+        .describe("Matching decomp project root directory"),
+    }),
+    options: z.object({
+      symbol: z
+        .string()
+        .optional()
+        .describe("Optional symbol/function to annotate"),
+      sourceFile: z
+        .string()
+        .optional()
+        .describe("Optional specific source file to annotate"),
+      style: z
+        .enum(["doxygen", "intent", "both"])
+        .optional()
+        .describe(
+          "Annotation style: doxygen contracts, intent comments, or both",
+        ),
+    }),
+    run: ({ args, options }) =>
+      execute(CLI_COMMANDS.annotateDecompSource, "annotate_decomp_source", {
+        project_directory: args.projectDirectory,
+        ...(options.symbol !== undefined ? { symbol: options.symbol } : {}),
+        ...(options.sourceFile !== undefined
+          ? { source_file: options.sourceFile }
+          : {}),
+        ...(options.style !== undefined ? { style: options.style } : {}),
+      }),
+  });
+
+  cli.command(CLI_COMMANDS.enrichDecompProject, {
+    description:
+      "Master orchestrator running the Semantic Decompilation Enrichment Suite (SDES)",
+    args: z.object({
+      projectDirectory: z
+        .string()
+        .describe("Matching decomp project root directory"),
+    }),
+    options: z.object({
+      dwarfSymbols: z
+        .boolean()
+        .optional()
+        .describe("Whether to run DWARF debug symbol extraction"),
+      libraryDetection: z
+        .boolean()
+        .optional()
+        .describe("Whether to run library signature detection"),
+      macroRecovery: z
+        .boolean()
+        .optional()
+        .describe("Whether to run macro/constant recovery"),
+      commentSynthesis: z
+        .boolean()
+        .optional()
+        .describe("Whether to synthesize Doxygen and intent comments"),
+    }),
+    run: ({ args, options }) =>
+      execute(CLI_COMMANDS.enrichDecompProject, "enrich_decomp_project", {
+        project_directory: args.projectDirectory,
+        ...(options.dwarfSymbols !== undefined
+          ? { dwarf_symbols: options.dwarfSymbols }
+          : {}),
+        ...(options.libraryDetection !== undefined
+          ? { library_detection: options.libraryDetection }
+          : {}),
+        ...(options.macroRecovery !== undefined
+          ? { macro_recovery: options.macroRecovery }
+          : {}),
+        ...(options.commentSynthesis !== undefined
+          ? { comment_synthesis: options.commentSynthesis }
+          : {}),
+      }),
+  });
 };

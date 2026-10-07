@@ -277,6 +277,28 @@ export const TOOL_EFFECTS: Readonly<Record<string, ToolEffects>> = {
     mutatesSession: true,
     writesFilesystem: true,
   }),
+  enrich_decomp_symbols: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+    launchesProcess: true,
+  }),
+  detect_decomp_libraries: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+  }),
+  recover_decomp_macros: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+  }),
+  annotate_decomp_source: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+  }),
+  enrich_decomp_project: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+    launchesProcess: true,
+  }),
   compare_functions: sessionEvidence,
   compare_bundles: effects({ mutatesSession: true }),
   find_changed_behavior: sessionEvidence,
