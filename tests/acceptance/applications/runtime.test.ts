@@ -59,41 +59,52 @@ const completeStderrRecords = (stderr: string): unknown[] =>
     .filter((line) => line.length > 0)
     .map((line): unknown => JSON.parse(line));
 
+const callCurrentDocument = async (target?: {
+  readonly path: string;
+  readonly kind?: "database";
+}) => {
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [mainPath],
+    cwd: process.cwd(),
+    env: {
+      PATH: process.env.PATH ?? "",
+      HOPPER_LAUNCHER_PATH: process.execPath,
+      ...(target === undefined
+        ? {}
+        : {
+            HOPPER_TARGET_PATH: target.path,
+            ...(target.kind === undefined
+              ? {}
+              : { HOPPER_TARGET_KIND: target.kind }),
+          }),
+      HOPPER_LOADER_ARGS_JSON: JSON.stringify([fixturePath]),
+    },
+    stderr: "pipe",
+  });
+  let stderr = "";
+  transport.stderr?.on("data", (chunk: Buffer | string) => {
+    stderr += chunk.toString();
+  });
+  const client = new Client({ name: "runtime-smoke", version: "1.0.0" });
+
+  let result: Awaited<ReturnType<Client["callTool"]>>;
+  try {
+    await client.connect(transport);
+    result = await client.callTool({
+      name: "current_document",
+      arguments: {},
+    });
+  } finally {
+    await client.close();
+    await transport.close();
+  }
+  return { result, stderr, records: completeStderrRecords(stderr) };
+};
+
 describe("production stdio runtime", () => {
   // The `test:acceptance` lane runs the real entrypoint on the current host;
   // these cases state each supported host's result in the test name and body.
-  const callCurrentDocument = async (targetPath?: string) => {
-    const transport = new StdioClientTransport({
-      command: process.execPath,
-      args: [mainPath],
-      cwd: process.cwd(),
-      env: {
-        PATH: process.env.PATH ?? "",
-        HOPPER_LAUNCHER_PATH: process.execPath,
-        ...(targetPath === undefined ? {} : { HOPPER_TARGET_PATH: targetPath }),
-        HOPPER_LOADER_ARGS_JSON: JSON.stringify([fixturePath]),
-      },
-      stderr: "pipe",
-    });
-    let stderr = "";
-    transport.stderr?.on("data", (chunk: Buffer | string) => {
-      stderr += chunk.toString();
-    });
-    const client = new Client({ name: "runtime-smoke", version: "1.0.0" });
-
-    let result: Awaited<ReturnType<Client["callTool"]>>;
-    try {
-      await client.connect(transport);
-      result = await client.callTool({
-        name: "current_document",
-        arguments: {},
-      });
-    } finally {
-      await client.close();
-      await transport.close();
-    }
-    return { result, stderr, records: completeStderrRecords(stderr) };
-  };
 
   it("reports a missing target through MCP and structured logs", async () => {
     const { result, stderr, records } = await callCurrentDocument();
@@ -122,9 +133,9 @@ describe("production stdio runtime", () => {
   it.runIf(process.platform === "darwin")(
     "returns the selected document on macOS through MCP and structured logs",
     async () => {
-      const { result, stderr, records } = await callCurrentDocument(
-        process.execPath,
-      );
+      const { result, stderr, records } = await callCurrentDocument({
+        path: process.execPath,
+      });
       expect(result.isError).not.toBe(true);
       const observation = evidenceResultOf(z.literal("fixture")).parse(
         result.structuredContent,
@@ -148,17 +159,13 @@ describe("production stdio runtime", () => {
     15_000,
   );
 
-  it("starts with a database-kind initial target without a fatal record", async () => {
+  it("serves the compiled catalog without an initial target or fatal record", async () => {
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: [mainPath],
       cwd: process.cwd(),
       env: {
         PATH: process.env.PATH ?? "",
-        HOPPER_LAUNCHER_PATH: process.execPath,
-        HOPPER_TARGET_PATH: new URL(import.meta.url).pathname,
-        HOPPER_TARGET_KIND: "database",
-        HOPPER_LOADER_ARGS_JSON: JSON.stringify([fixturePath]),
       },
       stderr: "pipe",
     });
@@ -166,21 +173,19 @@ describe("production stdio runtime", () => {
     transport.stderr?.on("data", (chunk: Buffer | string) => {
       stderr += chunk.toString();
     });
-    const client = new Client({ name: "database-runtime", version: "1.0.0" });
+    const client = new Client({ name: "catalog-runtime", version: "1.0.0" });
 
     try {
       await client.connect(transport);
-      // Check the compiled catalog once, through a provider-neutral session
-      // query. Opening the database and registering tools must not require
-      // launching Hopper or probing a Linux display.
+      // Keep catalog parity independent of initial target/provider startup.
       const status = await expectAvailableToolInventory(client);
       expect(
         z
-          .object({ result: z.object({ open: z.boolean(), kind: z.string() }) })
+          .object({ result: z.object({ open: z.boolean() }) })
           .parse(status.structuredContent).result,
-      ).toEqual({ open: true, kind: "database" });
-      // Closing the lazy session produces a structured lifecycle record without
-      // starting a provider, so the fatal-record check remains observable.
+      ).toEqual({ open: false });
+      // Closing the empty session produces a structured lifecycle record,
+      // making the fatal-record check observable without launching a provider.
       const closed = await client.callTool({
         name: "close_binary",
         arguments: {},
@@ -212,4 +217,30 @@ describe("production stdio runtime", () => {
     );
     expect(fatal).toEqual([]);
   }, 15_000);
+
+  it.runIf(process.platform === "darwin")(
+    "serves a database-kind initial target without a fatal record on macOS",
+    async () => {
+      const { result, records } = await callCurrentDocument({
+        path: fileURLToPath(import.meta.url),
+        kind: "database",
+      });
+      expect(result.isError).not.toBe(true);
+      evidenceResultOf(z.literal("fixture")).parse(result.structuredContent);
+      expect(records).toContainEqual(
+        expect.objectContaining({ tool: "current_document", status: "ok" }),
+      );
+      expect(
+        records.some(
+          (record) =>
+            typeof record === "object" &&
+            record !== null &&
+            "level" in record &&
+            typeof record.level === "number" &&
+            record.level >= 50,
+        ),
+      ).toBe(false);
+    },
+    15_000,
+  );
 });
