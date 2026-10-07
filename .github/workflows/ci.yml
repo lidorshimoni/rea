@@ -233,10 +233,10 @@ jobs:
       - name: Prepare cross compiler
         run: |
           # Slow Azure archive transfers can exhaust the job before compilation.
-          # Keep the same signed Ubuntu packages and prefer the main archive.
+          # Keep the same signed packages and avoid slow HTTP mirror fallback.
           for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
             if [ -f "$source" ]; then
-              sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' "$source"
+              sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g; s|http://archive.ubuntu.com|https://archive.ubuntu.com|g' "$source"
             fi
           done
           sudo apt-get update
