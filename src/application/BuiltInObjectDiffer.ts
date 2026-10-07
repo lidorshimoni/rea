@@ -18,6 +18,20 @@ interface ParsedInstruction {
   readonly relocations: string[];
 }
 
+const isAlignmentInstruction = (
+  inst: ParsedInstruction | undefined,
+): boolean => {
+  if (!inst) return false;
+  const m = inst.mnemonic.toLowerCase();
+  if (m === "nop" || m === "nopl" || m === "nopw" || m === "fnop") return true;
+  if (m === "xchg" && inst.operands.replace(/\s+/g, "") === "%ax,%ax")
+    return true;
+  if (m === "cs" && inst.operands.startsWith("nop")) return true;
+  if (m === "data16" && inst.operands.startsWith("nop")) return true;
+  if (m === ".byte" || m === ".word" || m === "00") return true;
+  return false;
+};
+
 /**
  * Built-in relocation-masked object differ utilizing `objdump -d -r`.
  * Provides 100% zero-dependency out-of-the-box object diffing without requiring
@@ -221,7 +235,24 @@ export class BuiltInObjectDiffer {
     expected: ParsedInstruction[],
     compiled: ParsedInstruction[],
   ): DecompDiffResult {
-    const totalInsts = Math.max(expected.length, compiled.length);
+    // Trim trailing alignment padding from baseline slice if compiled finished earlier
+    let effectiveExpLen = expected.length;
+    while (
+      effectiveExpLen > compiled.length &&
+      isAlignmentInstruction(expected[effectiveExpLen - 1])
+    ) {
+      effectiveExpLen--;
+    }
+
+    let effectiveCmpLen = compiled.length;
+    while (
+      effectiveCmpLen > expected.length &&
+      isAlignmentInstruction(compiled[effectiveCmpLen - 1])
+    ) {
+      effectiveCmpLen--;
+    }
+
+    const totalInsts = Math.max(effectiveExpLen, effectiveCmpLen);
     if (totalInsts === 0) {
       return {
         unit,
