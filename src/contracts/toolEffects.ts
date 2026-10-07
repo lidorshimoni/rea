@@ -248,6 +248,35 @@ export const TOOL_EFFECTS: Readonly<Record<string, ToolEffects>> = {
   }),
   compare_process_captures: sessionEvidence,
   compare_artifacts: sessionEvidence,
+  inspect_decomp_binary: effects({ mutatesSession: true }),
+  init_decomp_project: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+  }),
+  split_decomp_slices: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+  }),
+  build_decomp_unit: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+    launchesProcess: true,
+  }),
+  check_decomp_unit: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+    launchesProcess: true,
+  }),
+  permute_decomp_symbol: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+    launchesProcess: true,
+    idempotent: false,
+  }),
+  sync_decomp_obligations: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+  }),
   compare_functions: sessionEvidence,
   compare_bundles: effects({ mutatesSession: true }),
   find_changed_behavior: sessionEvidence,

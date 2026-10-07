@@ -103,9 +103,14 @@ const hopperArchitectureFlag = (architecture: BinaryArchitecture): string => {
     case "x86_64":
       return "--intel-64";
     case "arm":
+    case "arm-thumb":
       return "--armv7";
     case "arm64":
       return "--aarch64";
+    case "mips":
+    case "powerpc":
+    case "riscv":
+      return "--intel-64";
   }
 };
 

@@ -67,6 +67,11 @@ export const toolFamilyCatalog = (sources) => {
       contracts: sources.applicationContracts.APPLICATION_TOOL_CONTRACTS,
     },
     {
+      id: "decompilation",
+      surface: "application",
+      contracts: sources.decompilationContracts.DECOMPILATION_TOOL_CONTRACTS,
+    },
+    {
       id: "session",
       surface: "session",
       contracts: sources.sessionContracts.SESSION_TOOL_CONTRACTS,

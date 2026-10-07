@@ -26,6 +26,8 @@ import { registerAndroidTools } from "./registerAndroidTools.js";
 import { AndroidAnalysisService } from "../application/AndroidAnalysisService.js";
 import type { AndroidAnalysisPort } from "../application/AndroidAnalysisPort.js";
 import { JadxProvider } from "../android/JadxProvider.js";
+import { registerDecompilationTools } from "./registerDecompilationTools.js";
+import { MatchingDecompilationService } from "../application/MatchingDecompilationService.js";
 import { registerManagedWorkflowTools } from "./registerManagedWorkflowTools.js";
 import { registerNativeTools } from "./registerNativeTools.js";
 import { registerOfficialTools } from "./registerOfficialTools.js";
@@ -49,6 +51,7 @@ export interface CreateServerOptions {
   readonly electronObservation?: ElectronObservationPort;
   readonly electronActiveObservation?: ElectronActiveObservationPort;
   readonly javascriptRuntimeObservation?: JavaScriptRuntimeObservationPort;
+  readonly decompilationService?: MatchingDecompilationService | undefined;
   readonly availabilityPolicy?: () => SessionAvailability;
 }
 
@@ -145,6 +148,12 @@ export const createServer = (
     new FirmwareAnalysisService(
       options.firmwareAnalysis ?? new FirmwareProvider(),
     ),
+    toolLogger,
+    recordEvidence,
+  );
+  registerDecompilationTools(
+    server,
+    options.decompilationService ?? new MatchingDecompilationService(),
     toolLogger,
     recordEvidence,
   );

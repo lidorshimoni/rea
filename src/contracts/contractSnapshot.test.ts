@@ -17,6 +17,7 @@ import { BROWSER_SCENARIO_TOOL_CONTRACTS } from "./browserScenarioToolContracts.
 import { ELECTRON_TOOL_CONTRACTS } from "./electronToolContracts.js";
 import { JAVASCRIPT_RUNTIME_OBSERVATION_TOOL_CONTRACTS } from "./javascriptRuntimeObservationToolContracts.js";
 import { APPLICATION_TOOL_CONTRACTS } from "./applicationToolContracts.js";
+import { DECOMPILATION_TOOL_CONTRACTS } from "./decompilationToolContracts.js";
 import { TOOL_EFFECTS } from "./toolEffects.js";
 import { TOOL_CONTRACTS } from "./toolContracts.js";
 import {
@@ -84,6 +85,7 @@ describe("tool contract surface", () => {
       ...ELECTRON_TOOL_CONTRACTS,
       ...JAVASCRIPT_RUNTIME_OBSERVATION_TOOL_CONTRACTS,
       ...APPLICATION_TOOL_CONTRACTS,
+      ...DECOMPILATION_TOOL_CONTRACTS,
       ...SESSION_TOOL_CONTRACTS,
     ].map(({ name }) => name);
     expect(Object.keys(TOOL_EFFECTS).sort()).toEqual(names.sort());

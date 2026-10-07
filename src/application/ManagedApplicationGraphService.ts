@@ -7,6 +7,7 @@ import {
 import { type AnalysisError } from "../domain/analysisErrorBase.js";
 import { createEvidence, type Evidence } from "../domain/evidence.js";
 import { jsonValueSchema } from "../domain/jsonValue.js";
+import type { BinaryArchitecture } from "../domain/binaryTargetTypes.js";
 import {
   managedApplicationGraphResultSchema,
   projectManagedApplicationGraph,
@@ -72,7 +73,7 @@ const subjectTarget = (
       readonly path: string;
       readonly sha256: string;
       readonly format: "pe";
-      readonly architecture?: "x86" | "x86_64" | "arm" | "arm64";
+      readonly architecture?: BinaryArchitecture;
     }
   | undefined => {
   const subject =

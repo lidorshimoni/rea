@@ -80,6 +80,13 @@ export const CLI_COMMANDS = Object.freeze({
   compareJavaScriptExportShapes: "compare-javascript-export-shapes",
   buildReconstructionObligationLedger: "build-reconstruction-obligation-ledger",
   evaluateReconstructionCoverage: "evaluate-reconstruction-coverage",
+  inspectDecompBinary: "inspect-decomp-binary",
+  initDecompProject: "init-decomp-project",
+  splitDecompSlices: "split-decomp-slices",
+  buildDecompUnit: "build-decomp-unit",
+  checkDecompUnit: "check-decomp-unit",
+  permuteDecompSymbol: "permute-decomp-symbol",
+  syncDecompObligations: "sync-decomp-obligations",
 });
 
 /** Ordered primary CLI inventory; aliases are intentionally excluded. */

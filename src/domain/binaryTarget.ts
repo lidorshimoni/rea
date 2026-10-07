@@ -226,6 +226,14 @@ const elfArchitecture = (machine: number): BinaryArchitecture | undefined => {
       return "arm";
     case 183:
       return "arm64";
+    case 8:
+    case 10:
+      return "mips";
+    case 20:
+    case 21:
+      return "powerpc";
+    case 243:
+      return "riscv";
   }
   return undefined;
 };

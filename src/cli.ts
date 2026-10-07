@@ -17,6 +17,7 @@ import { registerBrowserScenarioCommands } from "./cliBrowserScenarioCommands.js
 import { registerElectronCommands } from "./cli/electronCommands.js";
 import { registerJavaScriptRuntimeObservationCommands } from "./cliJavaScriptRuntimeCommands.js";
 import { registerApplicationCommands } from "./cli/applicationCommands.js";
+import { registerDecompilationCommands } from "./cli/decompilationCommands.js";
 import type { CliInstance } from "./cli/types.js";
 
 /**
@@ -59,5 +60,6 @@ export const createCli = (
   registerElectronCommands(cli, logger);
   registerJavaScriptRuntimeObservationCommands(cli, logger);
   registerApplicationCommands(cli, logger);
+  registerDecompilationCommands(cli, logger);
   return cli;
 };

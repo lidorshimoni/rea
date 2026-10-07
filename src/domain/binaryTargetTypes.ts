@@ -1,5 +1,12 @@
-/** Provider-neutral CPU families detected from supported executable headers. */
-export type BinaryArchitecture = "x86" | "x86_64" | "arm" | "arm64";
+export type BinaryArchitecture =
+  | "x86"
+  | "x86_64"
+  | "arm"
+  | "arm64"
+  | "arm-thumb"
+  | "mips"
+  | "powerpc"
+  | "riscv";
 
 interface BinaryTargetIdentity {
   readonly path: string;
