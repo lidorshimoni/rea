@@ -1,0 +1,42 @@
+schema_version: 1
+name: matching_decomp_example
+
+target:
+  path: target.bin
+  sha256: 7b195b16daf98f42100e18296d50fe5b893cbe7cea30d82d944c2aa1311a3448
+  format: ELF64
+  architecture: x86_64
+  endianness: little
+  image_base: "0x00400350"
+
+toolchain:
+  compiler: gcc
+  version: "13.2.0"
+  flags:
+    - "-O2"
+    - "-fno-pie"
+    - "-no-pie"
+    - "-fomit-frame-pointer"
+    - "-fno-asynchronous-unwind-tables"
+    - "-ffunction-sections"
+    - "-fdata-sections"
+    - "-Wall"
+    - "-Wextra"
+  include_paths:
+    - "include"
+
+splicing:
+  day0_mode: progressive_assembly
+  asm_directory: asm
+  src_directory: src
+  expected_directory: expected
+  build_directory: build
+
+enrichment:
+  dwarf_symbols: true
+  library_detection: true
+  library_signatures_path: null
+  macro_recovery: true
+  macro_constants_path: null
+  comment_synthesis: true
+  llm_fallback: true

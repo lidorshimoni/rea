@@ -1,0 +1,127 @@
+{
+  "target_sha256": "7b195b16daf98f42100e18296d50fe5b893cbe7cea30d82d944c2aa1311a3448",
+  "total_slices": 11,
+  "slices": [
+    {
+      "id": "pad_000000",
+      "name": "pad_000000",
+      "type": "padding",
+      "offset": 0,
+      "size": 4192,
+      "address": "0x00400350",
+      "asm_file": "asm/padding/pad_000000.s",
+      "status": "spliced"
+    },
+    {
+      "id": "func_main",
+      "name": "main",
+      "type": "function",
+      "offset": 4192,
+      "size": 92,
+      "address": "0x00401060",
+      "asm_file": "asm/core/main.s",
+      "source_file": "src/core/main.c",
+      "status": "spliced",
+      "is_global": true
+    },
+    {
+      "id": "pad_0010bc",
+      "name": "pad_0010bc",
+      "type": "padding",
+      "offset": 4284,
+      "size": 4,
+      "address": "0x0040140c",
+      "asm_file": "asm/padding/pad_0010bc.s",
+      "status": "spliced"
+    },
+    {
+      "id": "func__start",
+      "name": "_start",
+      "type": "function",
+      "offset": 4288,
+      "size": 38,
+      "address": "0x004010c0",
+      "asm_file": "asm/boot/_start.s",
+      "source_file": "src/boot/_start.c",
+      "status": "spliced",
+      "is_global": true
+    },
+    {
+      "id": "pad_0010e6",
+      "name": "pad_0010e6",
+      "type": "padding",
+      "offset": 4326,
+      "size": 10,
+      "address": "0x00401436",
+      "asm_file": "asm/padding/pad_0010e6.s",
+      "status": "spliced"
+    },
+    {
+      "id": "func__dl_relocate_static_pie",
+      "name": "_dl_relocate_static_pie",
+      "type": "function",
+      "offset": 4336,
+      "size": 5,
+      "address": "0x004010f0",
+      "asm_file": "asm/core/_dl_relocate_static_pie.s",
+      "source_file": "src/core/_dl_relocate_static_pie.c",
+      "status": "spliced",
+      "is_global": true
+    },
+    {
+      "id": "pad_0010f5",
+      "name": "pad_0010f5",
+      "type": "padding",
+      "offset": 4341,
+      "size": 203,
+      "address": "0x00401445",
+      "asm_file": "asm/padding/pad_0010f5.s",
+      "status": "spliced"
+    },
+    {
+      "id": "func_calculate_crc32",
+      "name": "calculate_crc32",
+      "type": "function",
+      "offset": 4544,
+      "size": 100,
+      "address": "0x004011c0",
+      "asm_file": "asm/core/calculate_crc32.s",
+      "source_file": "src/core/calculate_crc32.c",
+      "status": "spliced",
+      "is_global": true
+    },
+    {
+      "id": "pad_001224",
+      "name": "pad_001224",
+      "type": "padding",
+      "offset": 4644,
+      "size": 12,
+      "address": "0x00401574",
+      "asm_file": "asm/padding/pad_001224.s",
+      "status": "spliced"
+    },
+    {
+      "id": "func_advance_sequence",
+      "name": "advance_sequence",
+      "type": "function",
+      "offset": 4656,
+      "size": 35,
+      "address": "0x00401230",
+      "asm_file": "asm/core/advance_sequence.s",
+      "source_file": "src/core/advance_sequence.c",
+      "status": "spliced",
+      "is_global": true
+    },
+    {
+      "id": "pad_tail_001253",
+      "name": "pad_tail_001253",
+      "type": "data",
+      "offset": 4691,
+      "size": 11261,
+      "address": "0x004015a3",
+      "asm_file": "asm/data/pad_tail_001253.s",
+      "status": "spliced"
+    }
+  ],
+  "linker_script_path": "linker.ld"
+}

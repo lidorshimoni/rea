@@ -1,0 +1,379 @@
+{
+  "schema": "ReconstructionObligationLedger",
+  "ledger_id": "rol_d58f3e32c57e45dd319ff903a882a9272c543073e54f841b1203242e58b787f6",
+  "closure_digest": "05f668a409a2a94f1be3c70b1a01322ecc8fb29da5abd85f6776a94e115e84fd",
+  "status": "ready",
+  "coverage": {
+    "status": "complete"
+  },
+  "summary": {
+    "total": 5,
+    "required": 0,
+    "verified": 0,
+    "required_open": 0,
+    "by_status": [
+      {
+        "key": "unowned",
+        "count": 0
+      },
+      {
+        "key": "characterized",
+        "count": 0
+      },
+      {
+        "key": "implemented",
+        "count": 0
+      },
+      {
+        "key": "verified",
+        "count": 0
+      },
+      {
+        "key": "contradicted",
+        "count": 0
+      },
+      {
+        "key": "blocked",
+        "count": 0
+      },
+      {
+        "key": "out-of-scope",
+        "count": 5
+      },
+      {
+        "key": "unknown",
+        "count": 0
+      }
+    ],
+    "by_application_layer": [
+      {
+        "key": "cli",
+        "count": 0
+      },
+      {
+        "key": "protocol",
+        "count": 0
+      },
+      {
+        "key": "electron",
+        "count": 0
+      },
+      {
+        "key": "persistence",
+        "count": 0
+      },
+      {
+        "key": "process",
+        "count": 0
+      },
+      {
+        "key": "runtime",
+        "count": 0
+      },
+      {
+        "key": "packaging",
+        "count": 0
+      },
+      {
+        "key": "native-abi",
+        "count": 5
+      },
+      {
+        "key": "application",
+        "count": 0
+      },
+      {
+        "key": "other",
+        "count": 0
+      }
+    ],
+    "by_evidence_authority": [
+      {
+        "key": "candidate",
+        "count": 0
+      },
+      {
+        "key": "observed",
+        "count": 0
+      },
+      {
+        "key": "reviewed",
+        "count": 5
+      },
+      {
+        "key": "unknown",
+        "count": 0
+      }
+    ]
+  },
+  "reports": {
+    "missing_owner_obligation_ids": [
+      "native-abi:symbol:_dl_relocate_static_pie",
+      "native-abi:symbol:_start",
+      "native-abi:symbol:advance_sequence",
+      "native-abi:symbol:calculate_crc32",
+      "native-abi:symbol:main"
+    ],
+    "missing_verifier_obligation_ids": [],
+    "contradicted_obligation_ids": [],
+    "residual_unknown_ids": []
+  },
+  "ownership_graph": [],
+  "dependency_graph": [],
+  "obligations": [
+    {
+      "obligation_id": "native-abi:symbol:_dl_relocate_static_pie",
+      "obligation_version": 1,
+      "title": "Verify 1:1 matching decompilation for function _dl_relocate_static_pie",
+      "origin": "reviewed",
+      "application_layer": "native-abi",
+      "family": "matching_decompilation",
+      "target": {
+        "artifact_sha256": "7b195b16daf98f42100e18296d50fe5b893cbe7cea30d82d944c2aa1311a3448",
+        "application_node_id": null,
+        "semantic_node_id": null,
+        "location": "offset 0x10f0"
+      },
+      "authority_references": [
+        {
+          "evidence_id": "ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e",
+          "authority": "shipped-artifact",
+          "state": "candidate",
+          "location": "/evidence/ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e"
+        }
+      ],
+      "source_state": "reviewed",
+      "observed_cases": [],
+      "required": false,
+      "required_case_kinds": ["positive"],
+      "required_original_authority": "static",
+      "required_fixture_authority": "native-abi",
+      "required_verifier_authority": "native-abi",
+      "requires_parser_type": false,
+      "dependency_obligation_ids": [],
+      "residual_unknown_ids": [],
+      "unavailable_authority": [],
+      "required_next_evidence": [],
+      "binding": null,
+      "status": "out-of-scope",
+      "diagnostics": [
+        {
+          "code": "missing-original-case",
+          "detail": "Original positive behavior has not been observed."
+        },
+        {
+          "code": "missing-owner",
+          "detail": "No reconstruction manifest binding owns this obligation."
+        },
+        {
+          "code": "out-of-scope",
+          "detail": "Reviewed disposition marks this obligation out of scope; it remains visible."
+        }
+      ]
+    },
+    {
+      "obligation_id": "native-abi:symbol:_start",
+      "obligation_version": 1,
+      "title": "Verify 1:1 matching decompilation for function _start",
+      "origin": "reviewed",
+      "application_layer": "native-abi",
+      "family": "matching_decompilation",
+      "target": {
+        "artifact_sha256": "7b195b16daf98f42100e18296d50fe5b893cbe7cea30d82d944c2aa1311a3448",
+        "application_node_id": null,
+        "semantic_node_id": null,
+        "location": "offset 0x10c0"
+      },
+      "authority_references": [
+        {
+          "evidence_id": "ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e",
+          "authority": "shipped-artifact",
+          "state": "candidate",
+          "location": "/evidence/ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e"
+        }
+      ],
+      "source_state": "reviewed",
+      "observed_cases": [],
+      "required": false,
+      "required_case_kinds": ["positive"],
+      "required_original_authority": "static",
+      "required_fixture_authority": "native-abi",
+      "required_verifier_authority": "native-abi",
+      "requires_parser_type": false,
+      "dependency_obligation_ids": [],
+      "residual_unknown_ids": [],
+      "unavailable_authority": [],
+      "required_next_evidence": [],
+      "binding": null,
+      "status": "out-of-scope",
+      "diagnostics": [
+        {
+          "code": "missing-original-case",
+          "detail": "Original positive behavior has not been observed."
+        },
+        {
+          "code": "missing-owner",
+          "detail": "No reconstruction manifest binding owns this obligation."
+        },
+        {
+          "code": "out-of-scope",
+          "detail": "Reviewed disposition marks this obligation out of scope; it remains visible."
+        }
+      ]
+    },
+    {
+      "obligation_id": "native-abi:symbol:advance_sequence",
+      "obligation_version": 1,
+      "title": "Verify 1:1 matching decompilation for function advance_sequence",
+      "origin": "reviewed",
+      "application_layer": "native-abi",
+      "family": "matching_decompilation",
+      "target": {
+        "artifact_sha256": "7b195b16daf98f42100e18296d50fe5b893cbe7cea30d82d944c2aa1311a3448",
+        "application_node_id": null,
+        "semantic_node_id": null,
+        "location": "offset 0x1230"
+      },
+      "authority_references": [
+        {
+          "evidence_id": "ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e",
+          "authority": "shipped-artifact",
+          "state": "candidate",
+          "location": "/evidence/ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e"
+        }
+      ],
+      "source_state": "reviewed",
+      "observed_cases": [],
+      "required": false,
+      "required_case_kinds": ["positive"],
+      "required_original_authority": "static",
+      "required_fixture_authority": "native-abi",
+      "required_verifier_authority": "native-abi",
+      "requires_parser_type": false,
+      "dependency_obligation_ids": [],
+      "residual_unknown_ids": [],
+      "unavailable_authority": [],
+      "required_next_evidence": [],
+      "binding": null,
+      "status": "out-of-scope",
+      "diagnostics": [
+        {
+          "code": "missing-original-case",
+          "detail": "Original positive behavior has not been observed."
+        },
+        {
+          "code": "missing-owner",
+          "detail": "No reconstruction manifest binding owns this obligation."
+        },
+        {
+          "code": "out-of-scope",
+          "detail": "Reviewed disposition marks this obligation out of scope; it remains visible."
+        }
+      ]
+    },
+    {
+      "obligation_id": "native-abi:symbol:calculate_crc32",
+      "obligation_version": 1,
+      "title": "Verify 1:1 matching decompilation for function calculate_crc32",
+      "origin": "reviewed",
+      "application_layer": "native-abi",
+      "family": "matching_decompilation",
+      "target": {
+        "artifact_sha256": "7b195b16daf98f42100e18296d50fe5b893cbe7cea30d82d944c2aa1311a3448",
+        "application_node_id": null,
+        "semantic_node_id": null,
+        "location": "offset 0x11c0"
+      },
+      "authority_references": [
+        {
+          "evidence_id": "ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e",
+          "authority": "shipped-artifact",
+          "state": "candidate",
+          "location": "/evidence/ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e"
+        }
+      ],
+      "source_state": "reviewed",
+      "observed_cases": [],
+      "required": false,
+      "required_case_kinds": ["positive"],
+      "required_original_authority": "static",
+      "required_fixture_authority": "native-abi",
+      "required_verifier_authority": "native-abi",
+      "requires_parser_type": false,
+      "dependency_obligation_ids": [],
+      "residual_unknown_ids": [],
+      "unavailable_authority": [],
+      "required_next_evidence": [],
+      "binding": null,
+      "status": "out-of-scope",
+      "diagnostics": [
+        {
+          "code": "missing-original-case",
+          "detail": "Original positive behavior has not been observed."
+        },
+        {
+          "code": "missing-owner",
+          "detail": "No reconstruction manifest binding owns this obligation."
+        },
+        {
+          "code": "out-of-scope",
+          "detail": "Reviewed disposition marks this obligation out of scope; it remains visible."
+        }
+      ]
+    },
+    {
+      "obligation_id": "native-abi:symbol:main",
+      "obligation_version": 1,
+      "title": "Verify 1:1 matching decompilation for function main",
+      "origin": "reviewed",
+      "application_layer": "native-abi",
+      "family": "matching_decompilation",
+      "target": {
+        "artifact_sha256": "7b195b16daf98f42100e18296d50fe5b893cbe7cea30d82d944c2aa1311a3448",
+        "application_node_id": null,
+        "semantic_node_id": null,
+        "location": "offset 0x1060"
+      },
+      "authority_references": [
+        {
+          "evidence_id": "ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e",
+          "authority": "shipped-artifact",
+          "state": "candidate",
+          "location": "/evidence/ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e"
+        }
+      ],
+      "source_state": "reviewed",
+      "observed_cases": [],
+      "required": false,
+      "required_case_kinds": ["positive"],
+      "required_original_authority": "static",
+      "required_fixture_authority": "native-abi",
+      "required_verifier_authority": "native-abi",
+      "requires_parser_type": false,
+      "dependency_obligation_ids": [],
+      "residual_unknown_ids": [],
+      "unavailable_authority": [],
+      "required_next_evidence": [],
+      "binding": null,
+      "status": "out-of-scope",
+      "diagnostics": [
+        {
+          "code": "missing-original-case",
+          "detail": "Original positive behavior has not been observed."
+        },
+        {
+          "code": "missing-owner",
+          "detail": "No reconstruction manifest binding owns this obligation."
+        },
+        {
+          "code": "out-of-scope",
+          "detail": "Reviewed disposition marks this obligation out of scope; it remains visible."
+        }
+      ]
+    }
+  ],
+  "evidence_links": [
+    "ev_78244086b231316c49e9ccb06ea1e72199ff4a5440b2c80d88f9dd7dcead0a4e"
+  ],
+  "limitations": []
+}

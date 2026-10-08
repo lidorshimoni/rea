@@ -225,6 +225,7 @@ See the [IDA provider guide](docs/ida-provider.md) for upstream installation lin
 | Reuse immutable analysis results without relaunching a provider  | Pass `--snapshot /path/to/analysis.json` to a deep-analysis command |
 | Import source as historical reference                            | `rea import-reference-source`                                       |
 | Capture or compare controlled process behavior                   | `rea capture-process` or `rea compare-process-captures`             |
+| Match-decompile binaries into 100% bit-exact recompilable C99    | See [Matching decompilation](docs/matching-decompilation.md)        |
 
 ```bash
 rea evidence-import /absolute/path/to/evidence/bundle.json
@@ -379,6 +380,7 @@ Static Android APK inspection is verified on Linux with headless JADX; see [Andr
 - **Evidence and comparison:** Save results with artifact identity, provider, locations, confidence, and limitations. Export or import bundles, compare artifacts and functions, and connect static findings to runtime observations without claiming causality from correlation.
 - **Open questions:** Track unresolved findings, contradictions, and follow-up probes. Reconstruction checks report pass, fail, or unknown rather than treating missing evidence as a pass.
 - **Guided workflows:** Start six [MCP investigation workflows](docs/mcp-prompts.md) with suggestions based on your current session.
+- **Matching decompilation:** Reconstruct ELF/PE/firmware binaries into modular, human-readable C99 with a 100% bit-exact Day 0 relink guarantee, relocation-masked object diffing, automated AST permutation, and offline semantic enrichment (macros, DWARF, 3rd-party signatures). See the [matching decompilation guide](docs/matching-decompilation.md), [runnable example](examples/matching-decompilation/README.md), and [benchmark report](docs/matching-decompilation-evaluation.md).
 
 Windows x64 Ghidra P0 supports native, non-managed, non-DLL x86-64 PE applications on fixed local NTFS with 25 read-only operations. Linux/macOS Ghidra additionally supports atomic session-scoped function names and entry comments. Ghidra has no GUI controls; Windows P0 has no mutation authority.
 
