@@ -45,6 +45,7 @@ Thumbs.db
 # Local reference sources and analysis artifacts
 /_reference/
 tests/fixtures/benchmark/
+scratch/
 
 # Binaries and object files
 *.bin
