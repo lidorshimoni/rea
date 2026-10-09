@@ -10,7 +10,7 @@
     "skill_version": "26"
   },
   "tools": {
-    "total": 137,
+    "total": 138,
     "families": [
       {
         "id": "direct",
@@ -193,7 +193,7 @@
       {
         "id": "decompilation",
         "surface": "application",
-        "count": 12,
+        "count": 13,
         "tools": [
           "annotate_decomp_source",
           "build_decomp_unit",
@@ -205,6 +205,7 @@
           "inspect_decomp_binary",
           "permute_decomp_symbol",
           "recover_decomp_macros",
+          "rename_decomp_symbol",
           "split_decomp_slices",
           "sync_decomp_obligations"
         ]
@@ -551,7 +552,7 @@
     }
   ],
   "cli": {
-    "primary_count": 92,
+    "primary_count": 93,
     "commands": [
       "address-to-file-offset",
       "analyze",
@@ -629,6 +630,7 @@
       "read-bytes",
       "reconcile-javascript-runtime",
       "recover-decomp-macros",
+      "rename-decomp-symbol",
       "resolve-native-call-targets",
       "search",
       "search-android-classes",
@@ -655,14 +657,14 @@
   },
   "runtime_catalog": {
     "counts": {
-      "cli_commands": 92,
-      "mcp_tools": 137,
+      "cli_commands": 93,
+      "mcp_tools": 138,
       "mcp_prompts": 6
     },
     "digests": {
-      "tools_sha256": "f26dcd1f03d36cccecb02f54d9745e3291daae5bb40744de70ed7532ab553246",
+      "tools_sha256": "df228f5ca74af532baf380b018a2e82a1847ba525118ac60843471c42d9d27d8",
       "prompts_sha256": "ef2de8814390b340623c32001610aa2709d90bed51537b6e562ab3abf144ab4d",
-      "combined_sha256": "b3ab1a41f73ea17c3c12f1a7c5c0f00ef11d4743a9a6201a300abd51f4c710b9",
+      "combined_sha256": "fdcc6406717c89259d50439a551351d38f5c52917c076d05878cc6e295e77d48",
       "providers_sha256": "044634314b36b966bd918f99f116f4684108556ac1dabc912e76ccd351d97e3e"
     }
   }

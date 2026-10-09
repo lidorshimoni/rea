@@ -361,4 +361,40 @@ export const registerDecompilationCommands = (
           : {}),
       }),
   });
+
+  cli.command(CLI_COMMANDS.renameDecompSymbol, {
+    description:
+      "Renames a decompilation symbol across slices, source files, and headers with weak-aliasing support",
+    args: z.object({
+      projectDirectory: z
+        .string()
+        .describe("Matching decomp project root directory"),
+      originalName: z
+        .string()
+        .describe("Original symbol name to rename (e.g. sub_08000100)"),
+      newName: z
+        .string()
+        .describe("New semantic name for symbol (e.g. parse_packet)"),
+    }),
+    options: z.object({
+      kind: z
+        .enum(["function", "variable", "type", "macro"])
+        .optional()
+        .describe("Optional symbol kind"),
+      sourceFile: z
+        .string()
+        .optional()
+        .describe("Optional specific source file to restrict renaming"),
+    }),
+    run: ({ args, options }) =>
+      execute(CLI_COMMANDS.renameDecompSymbol, "rename_decomp_symbol", {
+        project_directory: args.projectDirectory,
+        original_name: args.originalName,
+        new_name: args.newName,
+        ...(options.kind !== undefined ? { kind: options.kind } : {}),
+        ...(options.sourceFile !== undefined
+          ? { source_file: options.sourceFile }
+          : {}),
+      }),
+  });
 };

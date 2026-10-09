@@ -40,6 +40,7 @@ import {
   decompRecoverMacrosResultSchema,
   decompAnnotateSourceResultSchema,
   decompEnrichProjectResultSchema,
+  decompRenameSymbolResultSchema,
 } from "../domain/decompilationAnalysis.js";
 
 describe("BinaryFingerprintScanner", () => {
@@ -999,5 +1000,243 @@ describe("DwarfSymbolExtractor offset normalization & member locations", () => {
     expect(ctrl?.offset).toBe(0);
     expect(status?.offset).toBe(4);
     expect(data?.offset).toBe(8);
+  });
+});
+
+describe("LinearPartitionSplicer Semantic Naming & Aliasing", () => {
+  it("emits weak alias and global directives when semantic_name is present", () => {
+    const splicer = new LinearPartitionSplicer();
+    const sliceWithSemantic = {
+      id: "func_sub_08000100",
+      name: "sub_08000100",
+      semantic_name: "calculate_crc32",
+      type: "function" as const,
+      offset: 0x100,
+      size: 64,
+      address: "0x08000100",
+      asm_file: "asm/core/sub_08000100.s",
+      status: "spliced" as const,
+    };
+
+    const stub = splicer.generateAsmStub(sliceWithSemantic, false);
+    expect(stub).toContain(".global sub_08000100");
+    expect(stub).toContain(".weak calculate_crc32");
+    expect(stub).toContain(".set calculate_crc32, sub_08000100");
+    expect(stub).toContain(".global calculate_crc32");
+
+    const sliceWithoutSemantic = {
+      id: "func_sub_08000200",
+      name: "sub_08000200",
+      type: "function" as const,
+      offset: 0x200,
+      size: 32,
+      address: "0x08000200",
+      asm_file: "asm/core/sub_08000200.s",
+      status: "spliced" as const,
+    };
+    const stubNoSemantic = splicer.generateAsmStub(sliceWithoutSemantic, false);
+    expect(stubNoSemantic).toContain(".global sub_08000200");
+    expect(stubNoSemantic).not.toContain(".weak");
+    expect(stubNoSemantic).not.toContain(".set");
+  });
+
+  it("generates linker script with PROVIDE directives and discarded sections", () => {
+    const splicer = new LinearPartitionSplicer();
+    const slices = [
+      {
+        id: "func_sub_08000100",
+        name: "sub_08000100",
+        semantic_name: "calculate_crc32",
+        type: "function" as const,
+        offset: 0x100,
+        size: 64,
+        address: "0x08000100",
+        asm_file: "asm/core/sub_08000100.s",
+        status: "spliced" as const,
+      },
+      {
+        id: "func_sub_08000200",
+        name: "sub_08000200",
+        type: "function" as const,
+        offset: 0x200,
+        size: 32,
+        address: "0x08000200",
+        asm_file: "asm/core/sub_08000200.s",
+        status: "spliced" as const,
+      },
+    ];
+
+    const script = splicer.generateLinkerScript(slices, 0x400000n, false);
+    expect(script).toContain("PROVIDE(sub_08000100 = calculate_crc32);");
+    expect(script).toContain("/DISCARD/ : {");
+    expect(script).toContain("*(.note*)");
+    expect(script).toContain("*(.comment*)");
+    expect(script).toContain("*(.eh_frame*)");
+  });
+});
+
+describe("MatchingDecompilationService rename_decomp_symbol", () => {
+  it("renames slice symbol, generates weak alias, updates linker script, and preserves relink invariant", async () => {
+    const service = new MatchingDecompilationService();
+    const testDir = await createTestTempDirectory("decomp-rename-test-");
+    const fixtureDir = join(process.cwd(), "tests", "fixtures", "decomp");
+    const targetBin = join(testDir, "target.bin");
+
+    // 1. Build test binary
+    await execFileOutput("gcc", [
+      "-O2",
+      "-fno-pie",
+      "-no-pie",
+      "-ffunction-sections",
+      join(fixtureDir, "main.c"),
+      join(fixtureDir, "crc32.c"),
+      join(fixtureDir, "globals.c"),
+      join(fixtureDir, "jump_tables.c"),
+      "-o",
+      targetBin,
+    ]);
+
+    // 2. Init project and split slices
+    const projectDir = join(testDir, "project");
+    const initRes = await service.execute("init_decomp_project", {
+      binary_path: targetBin,
+      project_directory: projectDir,
+    });
+    expect(initRes.ok).toBe(true);
+
+    const splitRes = await service.execute("split_decomp_slices", {
+      project_directory: projectDir,
+    });
+    expect(splitRes.ok).toBe(true);
+
+    // Initial Day 0 relink verification
+    const initialRelink = await service.execute("build_decomp_unit", {
+      project_directory: projectDir,
+      relink: true,
+    });
+    expect(initialRelink.ok).toBe(true);
+    if (!initialRelink.ok) throw new Error("initial relink failed");
+    const initialRelinkData = decompBuildResultSchema.parse(
+      initialRelink.value.normalized_result,
+    );
+    expect(initialRelinkData.full_binary_match).toBe(true);
+
+    // Copy authentic source files into project src/core
+    await writeFile(
+      join(projectDir, "src", "core", "crc32.c"),
+      await readFile(join(fixtureDir, "crc32.c"), "utf8"),
+    );
+
+    // 3. Rename decomp symbol: crc32 -> calculate_crc32_fast
+    const renameRes = await service.execute("rename_decomp_symbol", {
+      project_directory: projectDir,
+      original_name: "crc32",
+      new_name: "calculate_crc32_fast",
+      kind: "function",
+    });
+    expect(renameRes.ok).toBe(true);
+    if (!renameRes.ok) throw new Error("rename failed");
+    const renameData = decompRenameSymbolResultSchema.parse(
+      renameRes.value.normalized_result,
+    );
+    expect(renameData.success).toBe(true);
+    expect(renameData.slice_updated).toBe(true);
+    expect(renameData.original_name).toBe("crc32");
+    expect(renameData.new_name).toBe("calculate_crc32_fast");
+    expect(renameData.modified_files).toContain("slices.json");
+
+    // 4. Verify slices.json updated
+    const slicesRaw = await readFile(join(projectDir, "slices.json"), "utf8");
+    const manifest = JSON.parse(slicesRaw);
+    const renamedSlice = manifest.slices.find(
+      (s: { name: string }) => s.name === "crc32",
+    );
+    expect(renamedSlice).toBeDefined();
+    expect(renamedSlice.semantic_name).toBe("calculate_crc32_fast");
+
+    // 5. Verify assembly stub has weak alias
+    const stubContent = await readFile(
+      join(projectDir, renamedSlice.asm_file),
+      "utf8",
+    );
+    expect(stubContent).toContain(".global crc32");
+    expect(stubContent).toContain(".weak calculate_crc32_fast");
+    expect(stubContent).toContain(".set calculate_crc32_fast, crc32");
+    expect(stubContent).toContain(".global calculate_crc32_fast");
+
+    // 6. Verify linker.ld has PROVIDE
+    const linkerContent = await readFile(
+      join(projectDir, manifest.linker_script_path),
+      "utf8",
+    );
+    expect(linkerContent).toContain("PROVIDE(crc32 = calculate_crc32_fast);");
+
+    // 7. Verify source file was updated with word boundary
+    const updatedSource = await readFile(
+      join(projectDir, "src", "core", "crc32.c"),
+      "utf8",
+    );
+    expect(updatedSource).toContain("calculate_crc32_fast");
+
+    // 8. Verify Day 0 Relink still achieves 100% bit-exact match after renaming
+    const relinkAfterRename = await service.execute("build_decomp_unit", {
+      project_directory: projectDir,
+      relink: true,
+    });
+    expect(relinkAfterRename.ok).toBe(true);
+    if (!relinkAfterRename.ok) throw new Error("relink after rename failed");
+    const relinkAfterRenameData = decompBuildResultSchema.parse(
+      relinkAfterRename.value.normalized_result,
+    );
+    expect(relinkAfterRenameData.relink_success).toBe(true);
+    expect(relinkAfterRenameData.full_binary_match).toBe(true);
+  });
+
+  it("renames non-slice symbol across source files and respects source_file restriction", async () => {
+    const service = new MatchingDecompilationService();
+    const testDir = await createTestTempDirectory("decomp-rename-source-test-");
+
+    const srcDir = join(testDir, "src");
+    await mkdir(srcDir, { recursive: true });
+    const fileA = join(srcDir, "a.c");
+    const fileB = join(srcDir, "b.c");
+    await writeFile(fileA, "int helper_func(int x) { return x + 1; }", "utf8");
+    await writeFile(
+      fileB,
+      "int call_helper() { return helper_func(42); }",
+      "utf8",
+    );
+
+    // Rename only in fileB
+    const resRestricted = await service.execute("rename_decomp_symbol", {
+      project_directory: testDir,
+      original_name: "helper_func",
+      new_name: "custom_helper",
+      source_file: "src/b.c",
+    });
+    expect(resRestricted.ok).toBe(true);
+    if (!resRestricted.ok) throw new Error("restricted rename failed");
+    const restrictedData = decompRenameSymbolResultSchema.parse(
+      resRestricted.value.normalized_result,
+    );
+    expect(restrictedData.slice_updated).toBe(false);
+    expect(restrictedData.modified_files).toEqual(["src/b.c"]);
+
+    expect(await readFile(fileA, "utf8")).toContain("helper_func");
+    expect(await readFile(fileB, "utf8")).toContain("custom_helper");
+
+    // Rename across entire project
+    const resGlobal = await service.execute("rename_decomp_symbol", {
+      project_directory: testDir,
+      original_name: "helper_func",
+      new_name: "global_helper",
+    });
+    expect(resGlobal.ok).toBe(true);
+    if (!resGlobal.ok) throw new Error("global rename failed");
+    const globalData = decompRenameSymbolResultSchema.parse(
+      resGlobal.value.normalized_result,
+    );
+    expect(globalData.modified_files).toContain("src/a.c");
+    expect(await readFile(fileA, "utf8")).toContain("global_helper");
   });
 });

@@ -299,6 +299,10 @@ export const TOOL_EFFECTS: Readonly<Record<string, ToolEffects>> = {
     writesFilesystem: true,
     launchesProcess: true,
   }),
+  rename_decomp_symbol: effects({
+    mutatesSession: true,
+    writesFilesystem: true,
+  }),
   compare_functions: sessionEvidence,
   compare_bundles: effects({ mutatesSession: true }),
   find_changed_behavior: sessionEvidence,

@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { join, resolve, basename, dirname } from "node:path";
+import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
+import { join, resolve, basename, dirname, relative } from "node:path";
 import { createHash } from "node:crypto";
 import { parse as parseYaml } from "yaml";
 import { BinaryFingerprintScanner } from "./BinaryFingerprintScanner.js";
@@ -36,6 +36,7 @@ import {
   type DecompBinaryFingerprint,
   type DecompProjectConfig,
   type DecompSliceManifest,
+  type DecompSlice,
   type DecompBuildResult,
   type DecompDiffResult,
   type DecompPermuteResult,
@@ -45,6 +46,8 @@ import {
   type DecompRecoverMacrosResult,
   type DecompAnnotateSourceResult,
   type DecompEnrichProjectResult,
+  type DecompRenameSymbolInput,
+  type DecompRenameSymbolResult,
 } from "../domain/decompilationAnalysis.js";
 import {
   deriveReconstructionObligationCandidates,
@@ -436,6 +439,44 @@ export class MatchingDecompilationService {
           );
           break;
         }
+        case "rename_decomp_symbol": {
+          const res = await this.renameSymbol(parsed.data.input);
+          let config: DecompProjectConfig | undefined;
+          try {
+            config = await this.loadConfig(
+              resolve(parsed.data.input.project_directory),
+            );
+          } catch {
+            // Project config may not exist for ad-hoc source directories
+          }
+          const target = config
+            ? this.toEvidenceTarget(
+                config.target.path,
+                config.target.sha256,
+                config.target.format,
+                config.target.architecture,
+              )
+            : {
+                path:
+                  parsed.data.input.source_file ??
+                  parsed.data.input.project_directory,
+                sha256: "0".repeat(64),
+                format: "file" as const,
+              };
+          evidence = createEvidence(target, DECOMPILATION_PROVIDER, {
+            predicateType: "rea.decompilation.rename",
+            operation: "rename_decomp_symbol",
+            parameters: jsonObjectSchema.parse(toJson(parsed.data.input)),
+            result: toJson(res),
+            rawResult: null,
+            confidence: "derived",
+            authority: "shipped-artifact",
+            environment: null,
+            limitations: [],
+            evidenceLinks: [],
+          });
+          break;
+        }
       }
       return ok(evidence);
     } catch (caught: unknown) {
@@ -540,32 +581,35 @@ export class MatchingDecompilationService {
     const config = await this.loadConfig(projectDir);
     const symbol = options.symbol;
 
-    // Ensure baseline expected .o and candidate compiled .o exist
-    const expectedObj = join(
+    const paths = await this.resolveSlicePaths(
       projectDir,
-      config.splicing.build_directory,
-      "asm",
-      "core",
-      `${symbol}.o`,
-    );
-    const compiledObj = join(
-      projectDir,
-      config.splicing.build_directory,
-      "src",
-      "core",
-      `${symbol}.o`,
+      config,
+      symbol,
+      options.unit,
     );
 
     // Build expected object if missing
-    await this.ensureObjectBuilt(projectDir, config, symbol, "asm");
+    await this.ensureObjectBuilt(
+      projectDir,
+      config,
+      symbol,
+      "asm",
+      options.unit,
+    );
     // Build compiled object if missing
-    await this.ensureObjectBuilt(projectDir, config, symbol, "src");
+    await this.ensureObjectBuilt(
+      projectDir,
+      config,
+      symbol,
+      "src",
+      options.unit,
+    );
 
     return this.differ.diff({
-      unit: options.unit ?? `src/core/${symbol}.c`,
+      unit: paths.srcRelativePath,
       symbol,
-      expectedPath: expectedObj,
-      compiledPath: compiledObj,
+      expectedPath: paths.asmObjPath,
+      compiledPath: paths.srcObjPath,
     });
   }
 
@@ -999,17 +1043,23 @@ export class MatchingDecompilationService {
     config: DecompProjectConfig,
     symbol: string,
     mode: "asm" | "src",
+    unit?: string,
   ): Promise<void> {
-    const isArm = config.target.architecture === "arm-thumb";
+    const isArm =
+      config.target.architecture === "arm-thumb" ||
+      config.target.architecture === "arm";
     const asTool = isArm ? "arm-none-eabi-as" : "as";
     const ccTool = config.toolchain.compiler;
 
-    if (mode === "asm") {
-      const asmPath = join(projectDir, "asm", "core", `${symbol}.s`);
-      const outDir = join(projectDir, "build", "asm", "core");
-      const outPath = join(outDir, `${symbol}.o`);
-      await mkdir(outDir, { recursive: true });
+    const paths = await this.resolveSlicePaths(
+      projectDir,
+      config,
+      symbol,
+      unit,
+    );
 
+    if (mode === "asm") {
+      await mkdir(dirname(paths.asmObjPath), { recursive: true });
       try {
         await execFileOutput(
           asTool,
@@ -1017,9 +1067,9 @@ export class MatchingDecompilationService {
             isArm ? "-mthumb" : "",
             "-I",
             projectDir,
-            asmPath,
+            paths.asmPath,
             "-o",
-            outPath,
+            paths.asmObjPath,
           ].filter(Boolean),
           { cwd: projectDir, env: createAirgapEnv() },
         );
@@ -1027,11 +1077,7 @@ export class MatchingDecompilationService {
         // Asm compilation failed or file not found
       }
     } else {
-      const srcPath = join(projectDir, "src", "core", `${symbol}.c`);
-      const outDir = join(projectDir, "build", "src", "core");
-      const outPath = join(outDir, `${symbol}.o`);
-      await mkdir(outDir, { recursive: true });
-
+      await mkdir(dirname(paths.srcObjPath), { recursive: true });
       try {
         await execFileOutput(
           ccTool,
@@ -1040,9 +1086,9 @@ export class MatchingDecompilationService {
             "-I",
             join(projectDir, "include"),
             "-c",
-            srcPath,
+            paths.srcPath,
             "-o",
-            outPath,
+            paths.srcObjPath,
           ],
           { cwd: projectDir, env: createAirgapEnv() },
         );
@@ -1058,12 +1104,13 @@ export class MatchingDecompilationService {
     symbol: string,
     unit?: string,
   ): Promise<DecompBuildResult> {
-    const srcFile = unit
-      ? join(projectDir, unit)
-      : join(projectDir, "src", "core", `${symbol}.c`);
-    const outDir = join(projectDir, "build", "src", "core");
-    const outFile = join(outDir, `${symbol}.o`);
-    await mkdir(outDir, { recursive: true });
+    const paths = await this.resolveSlicePaths(
+      projectDir,
+      config,
+      symbol,
+      unit,
+    );
+    await mkdir(dirname(paths.srcObjPath), { recursive: true });
 
     try {
       const { stdout, stderr } = await execFileOutput(
@@ -1073,18 +1120,18 @@ export class MatchingDecompilationService {
           "-I",
           join(projectDir, "include"),
           "-c",
-          srcFile,
+          paths.srcPath,
           "-o",
-          outFile,
+          paths.srcObjPath,
         ],
         { cwd: projectDir, env: createAirgapEnv() },
       );
 
       // Also ensure baseline asm object is built for comparisons
-      await this.ensureObjectBuilt(projectDir, config, symbol, "asm");
+      await this.ensureObjectBuilt(projectDir, config, symbol, "asm", unit);
 
       return {
-        unit: unit ?? `src/core/${symbol}.c`,
+        unit: paths.srcRelativePath,
         symbol,
         success: true,
         compiler_output: (stdout + "\n" + stderr).trim(),
@@ -1092,7 +1139,7 @@ export class MatchingDecompilationService {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       return {
-        unit: unit ?? `src/core/${symbol}.c`,
+        unit: paths.srcRelativePath,
         symbol,
         success: false,
         compiler_output: message,
@@ -1104,7 +1151,9 @@ export class MatchingDecompilationService {
     projectDir: string,
     config: DecompProjectConfig,
   ): Promise<DecompBuildResult> {
-    const isArm = config.target.architecture === "arm-thumb";
+    const isArm =
+      config.target.architecture === "arm-thumb" ||
+      config.target.architecture === "arm";
     const ldTool = isArm ? "arm-none-eabi-ld" : "ld";
     const objcopyTool = isArm ? "arm-none-eabi-objcopy" : "objcopy";
     const asTool = isArm ? "arm-none-eabi-as" : "as";
@@ -1130,24 +1179,43 @@ export class MatchingDecompilationService {
     // Assemble all slice stubs, replacing with lifted src .o where available
     for (const slice of manifest.slices) {
       const sliceAsm = join(projectDir, slice.asm_file);
-      const sliceObj = join(
-        buildDir,
-        "asm",
-        slice.asm_file.replace(/\.s$/, ".o"),
-      );
+      const sliceObj = join(buildDir, slice.asm_file.replace(/\.s$/, ".o"));
       const srcObj = slice.source_file
-        ? join(buildDir, "src", slice.source_file.replace(/\.c$/, ".o"))
+        ? join(buildDir, slice.source_file.replace(/\.c$/, ".o"))
         : undefined;
 
       await mkdir(dirname(sliceObj), { recursive: true });
 
+      // Inversion fix: Assemble sliceObj FIRST before diffing
+      try {
+        await execFileOutput(
+          asTool,
+          [
+            isArm ? "-mthumb" : "",
+            "-I",
+            projectDir,
+            sliceAsm,
+            "-o",
+            sliceObj,
+          ].filter(Boolean),
+          { cwd: projectDir, env: createAirgapEnv() },
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          compiler_output: `Assembling ${slice.asm_file} failed: ${message}`,
+          relink_success: false,
+        };
+      }
+
       // Check if candidate .o exists and matches
       let useSrcObj = false;
-      if (srcObj) {
+      if (srcObj && existsSync(srcObj)) {
         try {
           const diff = await this.differ.diff({
             unit: slice.source_file!,
-            symbol: slice.name,
+            symbol: slice.semantic_name ?? slice.name,
             expectedPath: sliceObj,
             compiledPath: srcObj,
           });
@@ -1162,29 +1230,7 @@ export class MatchingDecompilationService {
       if (useSrcObj && srcObj) {
         objFiles.push(srcObj);
       } else {
-        // Assemble asm stub
-        try {
-          await execFileOutput(
-            asTool,
-            [
-              isArm ? "-mthumb" : "",
-              "-I",
-              projectDir,
-              sliceAsm,
-              "-o",
-              sliceObj,
-            ].filter(Boolean),
-            { cwd: projectDir, env: createAirgapEnv() },
-          );
-          objFiles.push(sliceObj);
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
-          return {
-            success: false,
-            compiler_output: `Assembling ${slice.asm_file} failed: ${message}`,
-            relink_success: false,
-          };
-        }
+        objFiles.push(sliceObj);
       }
     }
 
@@ -1234,6 +1280,198 @@ export class MatchingDecompilationService {
         compiler_output: `Linker execution failed: ${message}`,
         relink_success: false,
       };
+    }
+  }
+
+  /** 13. Rename decompilation symbol, creating weak alias in stub and updating references. */
+  async renameSymbol(
+    input: DecompRenameSymbolInput,
+  ): Promise<DecompRenameSymbolResult> {
+    const projectDir = resolve(input.project_directory);
+    let config: DecompProjectConfig | undefined;
+    try {
+      config = await this.loadConfig(projectDir);
+    } catch {
+      // Config optional
+    }
+
+    const isArm =
+      config?.target.architecture === "arm-thumb" ||
+      config?.target.architecture === "arm";
+    const imageBaseBig = BigInt(config?.target.image_base ?? "0x00400000");
+
+    let sliceUpdated = false;
+    const modifiedFiles = new Set<string>();
+
+    // 1. Update slices.json if slice exists
+    const slicesPath = join(projectDir, "slices.json");
+    try {
+      const raw = await readFile(slicesPath, "utf8");
+      const manifest = JSON.parse(raw) as DecompSliceManifest;
+      const slice = manifest.slices.find(
+        (s) =>
+          s.name === input.original_name ||
+          s.semantic_name === input.original_name,
+      );
+      if (slice) {
+        slice.semantic_name = input.new_name;
+        sliceUpdated = true;
+
+        await writeFile(slicesPath, JSON.stringify(manifest, null, 2), "utf8");
+        modifiedFiles.add("slices.json");
+
+        // Regenerate assembly stub with weak alias
+        const fullAsmPath = join(projectDir, slice.asm_file);
+        await mkdir(dirname(fullAsmPath), { recursive: true });
+        const stubContent = this.splicer.generateAsmStub(slice, isArm);
+        await writeFile(fullAsmPath, stubContent, "utf8");
+        modifiedFiles.add(slice.asm_file);
+
+        // Regenerate linker.ld with PROVIDE
+        const linkerPath = join(projectDir, manifest.linker_script_path);
+        const linkerContent = this.splicer.generateLinkerScript(
+          manifest.slices,
+          imageBaseBig,
+          isArm,
+        );
+        await writeFile(linkerPath, linkerContent, "utf8");
+        modifiedFiles.add(manifest.linker_script_path);
+      }
+    } catch {
+      // slices.json might not exist or failed to parse
+    }
+
+    // 2. Perform word-boundary replacement in source files
+    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`\\b${escapeRegex(input.original_name)}\\b`, "g");
+
+    const filesToSearch: string[] = [];
+    if (input.source_file) {
+      filesToSearch.push(join(projectDir, input.source_file));
+    } else {
+      await this.collectSourceFiles(join(projectDir, "src"), filesToSearch);
+      await this.collectSourceFiles(join(projectDir, "include"), filesToSearch);
+    }
+
+    for (const filePath of filesToSearch) {
+      try {
+        const content = await readFile(filePath, "utf8");
+        if (regex.test(content)) {
+          const updatedContent = content.replace(regex, input.new_name);
+          await writeFile(filePath, updatedContent, "utf8");
+          modifiedFiles.add(relative(projectDir, filePath));
+        }
+      } catch {
+        // File may not exist or not readable
+      }
+    }
+
+    const modifiedList = Array.from(modifiedFiles);
+    const success = sliceUpdated || modifiedList.length > 0;
+
+    let message: string;
+    if (sliceUpdated) {
+      message = `Successfully aliased slice ${input.original_name} to ${input.new_name} and updated references across ${modifiedList.length} file(s).`;
+    } else if (modifiedList.length > 0) {
+      message = `Renamed occurrences of ${input.original_name} to ${input.new_name} across ${modifiedList.length} file(s).`;
+    } else {
+      message = `No occurrences of symbol '${input.original_name}' found to rename.`;
+    }
+
+    return {
+      original_name: input.original_name,
+      new_name: input.new_name,
+      ...(input.kind !== undefined ? { kind: input.kind } : {}),
+      success,
+      slice_updated: sliceUpdated,
+      modified_files: modifiedList,
+      message,
+    };
+  }
+
+  private async resolveSlicePaths(
+    projectDir: string,
+    config: DecompProjectConfig,
+    symbol: string,
+    unit?: string,
+  ): Promise<{
+    asmPath: string;
+    asmObjPath: string;
+    srcPath: string;
+    srcObjPath: string;
+    srcRelativePath: string;
+    asmRelativePath: string;
+  }> {
+    const buildDir = join(projectDir, config.splicing.build_directory);
+    let slice: DecompSlice | undefined;
+
+    try {
+      const raw = await readFile(join(projectDir, "slices.json"), "utf8");
+      const manifest = JSON.parse(raw) as DecompSliceManifest;
+      slice = manifest.slices.find(
+        (s) =>
+          s.name === symbol ||
+          s.semantic_name === symbol ||
+          (unit !== undefined && s.source_file === unit),
+      );
+    } catch {
+      // Manifest not available
+    }
+
+    let srcRelativePath: string;
+    let asmRelativePath: string;
+
+    if (unit) {
+      srcRelativePath = unit;
+      asmRelativePath =
+        slice?.asm_file ??
+        (unit.startsWith("src/")
+          ? unit.replace(/^src\//, "asm/").replace(/\.c$/, ".s")
+          : `asm/core/${symbol}.s`);
+    } else if (slice) {
+      srcRelativePath = slice.source_file ?? `src/core/${symbol}.c`;
+      asmRelativePath = slice.asm_file;
+    } else {
+      srcRelativePath = `src/core/${symbol}.c`;
+      asmRelativePath = `asm/core/${symbol}.s`;
+    }
+
+    const srcPath = join(projectDir, srcRelativePath);
+    const asmPath = join(projectDir, asmRelativePath);
+    const srcObjPath = join(buildDir, srcRelativePath.replace(/\.c$/, ".o"));
+    const asmObjPath = join(buildDir, asmRelativePath.replace(/\.s$/, ".o"));
+
+    return {
+      asmPath,
+      asmObjPath,
+      srcPath,
+      srcObjPath,
+      srcRelativePath,
+      asmRelativePath,
+    };
+  }
+
+  private async collectSourceFiles(
+    dir: string,
+    result: string[],
+  ): Promise<void> {
+    try {
+      const entries = await readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await this.collectSourceFiles(fullPath, result);
+        } else if (
+          entry.isFile() &&
+          (entry.name.endsWith(".c") ||
+            entry.name.endsWith(".h") ||
+            entry.name.endsWith(".s"))
+        ) {
+          result.push(fullPath);
+        }
+      }
+    } catch {
+      // Directory may not exist
     }
   }
 }

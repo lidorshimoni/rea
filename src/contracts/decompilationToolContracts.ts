@@ -204,6 +204,25 @@ export const DECOMPILATION_TOOL_CONTRACTS = [
       },
     ],
   },
+  {
+    name: "rename_decomp_symbol",
+    ...toolContractMetadata("rename_decomp_symbol"),
+    kind: "application",
+    description:
+      "Renames a decompilation symbol across slices, source files, and headers, establishing weak-alias stubs and linker PROVIDE redirects to maintain bit-exact recompilation equivalence.",
+    inputSchema: decompInputSchemas.rename_decomp_symbol,
+    outputSchema: evidenceResultOf(decompResultSchemas.rename_decomp_symbol),
+    examples: [
+      {
+        title: "Rename decompilation symbol with semantic alias",
+        input: {
+          project_directory: "./decomp_workspace",
+          original_name: "sub_08000100",
+          new_name: "calc_crc32",
+        },
+      },
+    ],
+  },
 ] as const satisfies readonly ToolContract[];
 
 /** Resolve a decompilation contract by name while retaining exact types. */

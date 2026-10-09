@@ -775,7 +775,7 @@ export class LinearPartitionSplicer {
   /**
    * Emits a relocatable assembly stub for a slice.
    */
-  private generateAsmStub(slice: DecompSlice, isArm: boolean): string {
+  generateAsmStub(slice: DecompSlice, isArm: boolean): string {
     const isFunc = slice.type === "function";
     const cleanId = slice.id.replace(/[^a-zA-Z0-9_]/g, "_");
     const sectionName = isFunc ? `.text.${cleanId}` : `.${cleanId}`;
@@ -792,9 +792,16 @@ export class LinearPartitionSplicer {
 
     lines.push(`.section ${sectionName}, ${flags}`, `.balign 1`);
 
-    // Only export symbols that are global in the binary. Never export local, duplicate, or padding slices!
-    if (slice.is_global) {
-      lines.push(`.global ${slice.name}`);
+    // Every slice must emit .global to eliminate the GNU ld local symbol trap
+    lines.push(`.global ${slice.name}`);
+
+    // If a semantic name is assigned, emit a weak alias pointing to the original stub symbol
+    if (slice.semantic_name) {
+      lines.push(
+        `.weak ${slice.semantic_name}`,
+        `.set ${slice.semantic_name}, ${slice.name}`,
+        `.global ${slice.semantic_name}`,
+      );
     }
 
     if (isFunc) {
@@ -817,7 +824,7 @@ export class LinearPartitionSplicer {
   /**
    * Generates a memory-pinned linker script placing sections in exact linear sequence.
    */
-  private generateLinkerScript(
+  generateLinkerScript(
     slices: DecompSlice[],
     imageBase: bigint,
     isArm: boolean,
@@ -833,6 +840,15 @@ export class LinearPartitionSplicer {
       })
       .join("\n");
 
+    const provides = slices
+      .filter(
+        (s): s is DecompSlice & { semantic_name: string } =>
+          typeof s.semantic_name === "string" && s.semantic_name.length > 0,
+      )
+      .map((s) => `    PROVIDE(${s.name} = ${s.semantic_name});`);
+    const providesBlock =
+      provides.length > 0 ? `${provides.join("\n")}\n\n` : "";
+
     if (isArm) {
       return `/* REA Memory-Pinned Linker Script (Day 0 Link Invariant) */
 MEMORY
@@ -843,9 +859,15 @@ MEMORY
 
 SECTIONS
 {
-    .target_all : {
+${providesBlock}    .target_all : {
 ${sectionEntries}
     } > FLASH
+
+    /DISCARD/ : {
+        *(.note*)
+        *(.comment*)
+        *(.eh_frame*)
+    }
 }
 `;
     }
@@ -853,9 +875,15 @@ ${sectionEntries}
     return `/* REA Memory-Pinned Linker Script (Day 0 Link Invariant) */
 SECTIONS
 {
-    . = 0x${imageBase.toString(16).padStart(8, "0")};
+${providesBlock}    . = 0x${imageBase.toString(16).padStart(8, "0")};
     .target_all : {
 ${sectionEntries}
+    }
+
+    /DISCARD/ : {
+        *(.note*)
+        *(.comment*)
+        *(.eh_frame*)
     }
 }
 `;

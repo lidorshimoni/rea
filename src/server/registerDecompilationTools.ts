@@ -22,6 +22,7 @@ const DECOMPILATION_OPERATIONS: readonly DecompOperation[] = [
   "recover_decomp_macros",
   "annotate_decomp_source",
   "enrich_decomp_project",
+  "rename_decomp_symbol",
 ];
 
 /** Bind matching decompilation handlers to their exact named schemas. */

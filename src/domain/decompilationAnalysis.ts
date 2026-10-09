@@ -145,6 +145,7 @@ export type DecompDiffResult = z.infer<typeof decompDiffResultSchema>;
 export const decompSliceSchema = z.strictObject({
   id: z.string(),
   name: z.string(),
+  semantic_name: z.string().optional(),
   type: z.enum([
     "function",
     "literal_pool",
@@ -341,7 +342,50 @@ export type DecompEnrichProjectResult = z.infer<
   typeof decompEnrichProjectResultSchema
 >;
 
-/** Input schemas for all 12 matching decompilation tools. */
+/** Input schema for renaming decompilation symbol. */
+export const decompRenameSymbolInputSchema = z.strictObject({
+  project_directory: z
+    .string()
+    .min(1)
+    .describe("Matching decomp project root directory"),
+  original_name: z
+    .string()
+    .min(1)
+    .describe("Original symbol name to rename (e.g. sub_08000100)"),
+  new_name: z
+    .string()
+    .min(1)
+    .describe("New semantic name for symbol (e.g. parse_packet)"),
+  kind: z
+    .enum(["function", "variable", "type", "macro"])
+    .optional()
+    .describe("Optional symbol kind"),
+  source_file: z
+    .string()
+    .optional()
+    .describe("Optional specific source file to restrict renaming"),
+});
+
+export type DecompRenameSymbolInput = z.infer<
+  typeof decompRenameSymbolInputSchema
+>;
+
+/** Output result schema for renaming decompilation symbol. */
+export const decompRenameSymbolResultSchema = z.strictObject({
+  original_name: z.string(),
+  new_name: z.string(),
+  kind: z.enum(["function", "variable", "type", "macro"]).optional(),
+  success: z.boolean(),
+  slice_updated: z.boolean(),
+  modified_files: z.array(z.string()),
+  message: z.string(),
+});
+
+export type DecompRenameSymbolResult = z.infer<
+  typeof decompRenameSymbolResultSchema
+>;
+
+/** Input schemas for all 13 matching decompilation tools. */
 export const decompInputSchemas = {
   inspect_decomp_binary: z.strictObject({
     path: z.string().min(1).describe("Path to target binary or raw firmware"),
@@ -512,9 +556,10 @@ export const decompInputSchemas = {
       .optional()
       .describe("Whether to synthesize Doxygen and intent comments"),
   }),
+  rename_decomp_symbol: decompRenameSymbolInputSchema,
 } as const;
 
-/** Output result schemas for all 12 matching decompilation tools. */
+/** Output result schemas for all 13 matching decompilation tools. */
 export const decompResultSchemas = {
   inspect_decomp_binary: decompBinaryFingerprintSchema,
   init_decomp_project: decompProjectConfigSchema,
@@ -528,6 +573,7 @@ export const decompResultSchemas = {
   recover_decomp_macros: decompRecoverMacrosResultSchema,
   annotate_decomp_source: decompAnnotateSourceResultSchema,
   enrich_decomp_project: decompEnrichProjectResultSchema,
+  rename_decomp_symbol: decompRenameSymbolResultSchema,
 } as const;
 
 export type DecompOperation = keyof typeof decompInputSchemas;
@@ -587,5 +633,9 @@ export const decompRequestSchema = z.discriminatedUnion("operation", [
   z.strictObject({
     operation: z.literal("enrich_decomp_project"),
     input: decompInputSchemas.enrich_decomp_project,
+  }),
+  z.strictObject({
+    operation: z.literal("rename_decomp_symbol"),
+    input: decompInputSchemas.rename_decomp_symbol,
   }),
 ]);

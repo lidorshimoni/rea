@@ -92,6 +92,7 @@ export const CLI_COMMANDS = Object.freeze({
   recoverDecompMacros: "recover-decomp-macros",
   annotateDecompSource: "annotate-decomp-source",
   enrichDecompProject: "enrich-decomp-project",
+  renameDecompSymbol: "rename-decomp-symbol",
 });
 
 /** Ordered primary CLI inventory; aliases are intentionally excluded. */
