@@ -53,3 +53,7 @@ scratch/
 *.o
 *.so
 *.dylib
+*.tar
+*.tar.gz
+*.zip
+
